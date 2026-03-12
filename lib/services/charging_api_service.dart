@@ -1,15 +1,15 @@
-// Create file: lib/services/charging_api_service.dart
-
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/charging_models.dart';
 import 'api_service.dart';
 
 class ChargingApiService {
-  static const String baseUrl = 'http://192.168.1.180:8000/api/charging';
+  static const String baseUrl = 'http://192.168.1.218:8000/api/charging';
+  //static const String baseUrl =
+  // 'https://web-production-a06f0.up.railway.app/api/charging';
   final ApiService _apiService = ApiService();
 
-  // Get authorization header
+  // Auth headers
   Future<Map<String, String>> _getHeaders() async {
     final token = await _apiService.getToken();
     return {
@@ -27,14 +27,14 @@ class ChargingApiService {
         Uri.parse('$baseUrl/vehicles/'),
         headers: headers,
       );
-
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
         return data.map((json) => Vehicle.fromJson(json)).toList();
       }
+      print(' getVehicles error: ${response.statusCode} ${response.body}');
       return [];
     } catch (e) {
-      print('Error fetching vehicles: $e');
+      print(' getVehicles exception: $e');
       return [];
     }
   }
@@ -48,7 +48,6 @@ class ChargingApiService {
         headers: headers,
         body: jsonEncode(vehicleData),
       );
-
       return {
         'success': response.statusCode == 201,
         'data': jsonDecode(response.body),
@@ -91,24 +90,20 @@ class ChargingApiService {
 
   Future<List<ChargingStation>> getChargingStations() async {
     try {
-      print('🔗 URL being called: ${Uri.parse('$baseUrl/stations/')}');
       final headers = await _getHeaders();
-      // ADD THESE DEBUG LINES
-      print('📡 Fetching stations...');
-      print('🔑 Headers: $headers');
-
       final response = await http.get(
         Uri.parse('$baseUrl/stations/'),
         headers: headers,
       );
-
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
         return data.map((json) => ChargingStation.fromJson(json)).toList();
       }
+      print(
+          ' getChargingStations error: ${response.statusCode} ${response.body}');
       return [];
     } catch (e) {
-      print('Error fetching stations: $e');
+      print(' getChargingStations exception: $e');
       return [];
     }
   }
@@ -120,43 +115,68 @@ class ChargingApiService {
         Uri.parse('$baseUrl/stations/$stationId/'),
         headers: headers,
       );
-
       if (response.statusCode == 200) {
         return ChargingStation.fromJson(jsonDecode(response.body));
       }
       return null;
     } catch (e) {
-      print('Error fetching station detail: $e');
+      print(' getStationDetail exception: $e');
       return null;
     }
   }
 
-  // ==================== CHARGERS & TIME SLOTS ====================
+  // ==================== CHARGERS ====================
 
   Future<List<Charger>> getAvailableChargers(String stationId,
       {String? type}) async {
     try {
       final headers = await _getHeaders();
       var url = '$baseUrl/stations/$stationId/chargers/';
-      if (type != null) {
-        url += '?type=$type';
-      }
+      if (type != null) url += '?type=$type';
 
       final response = await http.get(
         Uri.parse(url),
         headers: headers,
       );
-
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
         return data.map((json) => Charger.fromJson(json)).toList();
       }
+      print(
+          ' getAvailableChargers error: ${response.statusCode} ${response.body}');
       return [];
     } catch (e) {
-      print('Error fetching chargers: $e');
+      print(' getAvailableChargers exception: $e');
       return [];
     }
   }
+
+  // Get ALL chargers including occupied ones
+  Future<List<Charger>> getAllChargers(String stationId, {String? type}) async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.get(
+        Uri.parse('$baseUrl/stations/$stationId/'),
+        headers: headers,
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final List<dynamic> chargersJson = data['chargers'] ?? [];
+        List<Charger> chargers =
+            chargersJson.map((json) => Charger.fromJson(json)).toList();
+        if (type != null) {
+          chargers = chargers.where((c) => c.chargerType == type).toList();
+        }
+        return chargers;
+      }
+      return [];
+    } catch (e) {
+      print(' getAllChargers exception: $e');
+      return [];
+    }
+  }
+
+  // ==================== TIME SLOTS ====================
 
   Future<List<TimeSlot>> getAvailableTimeSlots(
       String chargerId, DateTime date) async {
@@ -164,10 +184,19 @@ class ChargingApiService {
       final headers = await _getHeaders();
       final dateStr = date.toIso8601String().split('T')[0];
 
+      // checking debugs
+      print('🔍 Fetching time slots:');
+      print('   chargerId: $chargerId');
+      print('   date: $dateStr');
+      print('   URL: $baseUrl/chargers/$chargerId/time-slots/?date=$dateStr');
+
       final response = await http.get(
         Uri.parse('$baseUrl/chargers/$chargerId/time-slots/?date=$dateStr'),
         headers: headers,
       );
+
+      print('📡 Time slots status: ${response.statusCode}');
+      print('📡 Time slots body: ${response.body}');
 
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
@@ -175,22 +204,38 @@ class ChargingApiService {
       }
       return [];
     } catch (e) {
-      print('Error fetching time slots: $e');
+      print(' getAvailableTimeSlots exception: $e');
       return [];
     }
   }
 
   // ==================== BOOKINGS ====================
 
-  Future<Map<String, dynamic>> createBooking(
-      Map<String, dynamic> bookingData) async {
+  Future<Map<String, dynamic>> createBooking({
+    required String chargerId,
+    required String vehicleId,
+    required String timeSlotId,
+    required String bookingDate,
+    double? estimatedEnergy,
+    String? notes,
+  }) async {
     try {
       final headers = await _getHeaders();
       final response = await http.post(
         Uri.parse('$baseUrl/bookings/create/'),
         headers: headers,
-        body: jsonEncode(bookingData),
+        body: jsonEncode({
+          'charger': chargerId,
+          'vehicle': vehicleId,
+          'time_slot': timeSlotId,
+          'booking_date': bookingDate,
+          if (estimatedEnergy != null) 'estimated_energy': estimatedEnergy,
+          if (notes != null && notes.isNotEmpty) 'notes': notes,
+        }),
       );
+
+      print('📡 createBooking status: ${response.statusCode}');
+      print('📡 createBooking body: ${response.body}');
 
       return {
         'success': response.statusCode == 201,
@@ -211,14 +256,15 @@ class ChargingApiService {
         Uri.parse('$baseUrl/bookings/'),
         headers: headers,
       );
-
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
         return data.map((json) => ChargingBooking.fromJson(json)).toList();
       }
+      print(
+          ' getCustomerBookings error: ${response.statusCode} ${response.body}');
       return [];
     } catch (e) {
-      print('Error fetching bookings: $e');
+      print(' getCustomerBookings exception: $e');
       return [];
     }
   }
@@ -236,29 +282,29 @@ class ChargingApiService {
     }
   }
 
-  // ==================== STAFF: GET ALL BOOKINGS ====================
+  // ==================== STAFF ENDPOINTS ====================
 
-  Future<List<ChargingBooking>> getAllBookings() async {
+  Future<List<ChargingBooking>> getAllBookings({String? status}) async {
     try {
       final headers = await _getHeaders();
-      // This endpoint should be created for staff to see all bookings
+      var url = '$baseUrl/bookings/all/';
+      if (status != null) url += '?status=$status';
+
       final response = await http.get(
-        Uri.parse('$baseUrl/bookings/all/'),
+        Uri.parse(url),
         headers: headers,
       );
-
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
         return data.map((json) => ChargingBooking.fromJson(json)).toList();
       }
+      print(' getAllBookings error: ${response.statusCode} ${response.body}');
       return [];
     } catch (e) {
-      print('Error fetching all bookings: $e');
+      print(' getAllBookings exception: $e');
       return [];
     }
   }
-
-  // ==================== STAFF: UPDATE BOOKING STATUS ====================
 
   Future<Map<String, dynamic>> updateBookingStatus(
       String bookingId, String status) async {
@@ -269,7 +315,6 @@ class ChargingApiService {
         headers: headers,
         body: jsonEncode({'status': status}),
       );
-
       return {
         'success': response.statusCode == 200,
         'data': jsonDecode(response.body),
@@ -279,6 +324,42 @@ class ChargingApiService {
         'success': false,
         'data': {'error': 'Connection error: $e'},
       };
+    }
+  }
+
+  Future<Map<String, dynamic>?> getBookingStatistics() async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.get(
+        Uri.parse('$baseUrl/bookings/statistics/'),
+        headers: headers,
+      );
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+      return null;
+    } catch (e) {
+      print(' getBookingStatistics exception: $e');
+      return null;
+    }
+  }
+
+  // ==================== LIVE AVAILABILITY ====================
+
+  Future<List<dynamic>> getLiveStationAvailability() async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.get(
+        Uri.parse('$baseUrl/stations/live-availability/'),
+        headers: headers,
+      );
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+      return [];
+    } catch (e) {
+      print(' getLiveStationAvailability exception: $e');
+      return [];
     }
   }
 }

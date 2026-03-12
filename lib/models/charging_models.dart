@@ -23,14 +23,17 @@ class Vehicle {
 
   factory Vehicle.fromJson(Map<String, dynamic> json) {
     return Vehicle(
-      id: json['id'],
-      vehicleName: json['vehicle_name'],
-      vehicleNumber: json['vehicle_number'],
-      vehicleType: json['vehicle_type'],
-      batteryCapacity: double.parse(json['battery_capacity'].toString()),
-      chargingPortType: json['charging_port_type'],
+      id: json['id'] ?? '',
+      vehicleName: json['vehicle_name'] ?? '',
+      vehicleNumber: json['vehicle_number'] ?? '',
+      vehicleType: json['vehicle_type'] ?? '',
+      batteryCapacity:
+          double.tryParse(json['battery_capacity'].toString()) ?? 0.0,
+      chargingPortType: json['charging_port_type'] ?? '',
       isDefault: json['is_default'] ?? false,
-      createdAt: DateTime.parse(json['created_at']),
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'])
+          : DateTime.now(),
     );
   }
 
@@ -79,14 +82,14 @@ class ChargingStation {
 
   factory ChargingStation.fromJson(Map<String, dynamic> json) {
     return ChargingStation(
-      id: json['id'],
-      name: json['name'],
-      address: json['address'],
+      id: json['id'] ?? '',
+      name: json['name'] ?? '',
+      address: json['address'] ?? '',
       latitude: json['latitude'] != null
-          ? double.parse(json['latitude'].toString())
+          ? double.tryParse(json['latitude'].toString())
           : null,
       longitude: json['longitude'] != null
-          ? double.parse(json['longitude'].toString())
+          ? double.tryParse(json['longitude'].toString())
           : null,
       description: json['description'],
       amenities: List<String>.from(json['amenities_list'] ?? []),
@@ -127,15 +130,15 @@ class Charger {
 
   factory Charger.fromJson(Map<String, dynamic> json) {
     return Charger(
-      id: json['id'],
+      id: json['id'] ?? '',
       stationName: json['station_name'] ?? '',
-      chargerName: json['charger_name'],
-      chargerType: json['charger_type'],
-      powerOutput: double.parse(json['power_output'].toString()),
-      connectorTypes: json['connector_types'],
+      chargerName: json['charger_name'] ?? '',
+      chargerType: json['charger_type'] ?? '',
+      powerOutput: double.tryParse(json['power_output'].toString()) ?? 0.0,
+      connectorTypes: json['connector_types'] ?? '',
       connectorTypesList: List<String>.from(json['connector_types_list'] ?? []),
-      pricePerKwh: double.parse(json['price_per_kwh'].toString()),
-      status: json['status'],
+      pricePerKwh: double.tryParse(json['price_per_kwh'].toString()) ?? 0.0,
+      status: json['status'] ?? 'available',
       isAvailable: json['is_available'] ?? false,
     );
   }
@@ -143,9 +146,9 @@ class Charger {
 
 class TimeSlot {
   final String id;
-  final String chargerId;
-  final String chargerName;
-  final String chargerType;
+  final String chargerId; // optional — API may not return this
+  final String chargerName; // optional — API may not return this
+  final String chargerType; // optional — API may not return this
   final DateTime date;
   final String startTime;
   final String endTime;
@@ -164,14 +167,17 @@ class TimeSlot {
 
   factory TimeSlot.fromJson(Map<String, dynamic> json) {
     return TimeSlot(
-      id: json['id'],
-      chargerId: json['charger'],
+      id: json['id'] ?? '',
+      // ── These fields may not be in API response — default to '' ──
+      chargerId: json['charger'] ?? '',
       chargerName: json['charger_name'] ?? '',
       chargerType: json['charger_type'] ?? '',
-      date: DateTime.parse(json['date']),
-      startTime: json['start_time'],
-      endTime: json['end_time'],
-      isAvailable: json['is_available'] ?? false,
+      // ── These are always returned ─────────────────────────────
+      date:
+          json['date'] != null ? DateTime.parse(json['date']) : DateTime.now(),
+      startTime: json['start_time'] ?? '',
+      endTime: json['end_time'] ?? '',
+      isAvailable: json['is_available'] ?? true,
     );
   }
 }
@@ -223,34 +229,39 @@ class ChargingBooking {
 
   factory ChargingBooking.fromJson(Map<String, dynamic> json) {
     return ChargingBooking(
-      id: json['id'],
+      id: json['id'] ?? '',
       customerName: json['customer_name'] ?? '',
-      vehicleId: json['vehicle'],
+      // ── vehicle/charger/timeslot may be UUID or nested ────────
+      vehicleId: json['vehicle']?.toString() ?? '',
       vehicleNumber: json['vehicle_number'] ?? '',
       vehicleName: json['vehicle_name'] ?? '',
-      chargerId: json['charger'],
+      chargerId: json['charger']?.toString() ?? '',
       stationName: json['station_name'] ?? '',
       chargerName: json['charger_name'] ?? '',
       chargerType: json['charger_type'] ?? '',
-      timeSlotId: json['time_slot'],
-      bookingDate: DateTime.parse(json['booking_date']),
-      startTime: json['start_time'],
-      endTime: json['end_time'],
+      timeSlotId: json['time_slot']?.toString() ?? '',
+      bookingDate: json['booking_date'] != null
+          ? DateTime.parse(json['booking_date'])
+          : DateTime.now(),
+      startTime: json['start_time'] ?? '',
+      endTime: json['end_time'] ?? '',
       estimatedEnergy: json['estimated_energy'] != null
-          ? double.parse(json['estimated_energy'].toString())
+          ? double.tryParse(json['estimated_energy'].toString())
           : null,
       estimatedCost: json['estimated_cost'] != null
-          ? double.parse(json['estimated_cost'].toString())
+          ? double.tryParse(json['estimated_cost'].toString())
           : null,
       actualEnergy: json['actual_energy'] != null
-          ? double.parse(json['actual_energy'].toString())
+          ? double.tryParse(json['actual_energy'].toString())
           : null,
       actualCost: json['actual_cost'] != null
-          ? double.parse(json['actual_cost'].toString())
+          ? double.tryParse(json['actual_cost'].toString())
           : null,
-      status: json['status'],
+      status: json['status'] ?? 'pending',
       notes: json['notes'],
-      createdAt: DateTime.parse(json['created_at']),
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'])
+          : DateTime.now(),
     );
   }
 

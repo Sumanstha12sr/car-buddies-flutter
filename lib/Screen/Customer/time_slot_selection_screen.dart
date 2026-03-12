@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
-import '../../models/charging_models.dart';
-import '../../services/charging_api_service.dart';
+import '../../../models/charging_models.dart';
+import '../../../services/charging_api_service.dart';
 import 'booking_confirmation_screen.dart';
 
 class TimeSlotSelectionScreen extends StatefulWidget {
@@ -10,11 +9,11 @@ class TimeSlotSelectionScreen extends StatefulWidget {
   final Vehicle vehicle;
 
   const TimeSlotSelectionScreen({
-    Key? key,
+    super.key,
     required this.station,
     required this.charger,
     required this.vehicle,
-  }) : super(key: key);
+  });
 
   @override
   State<TimeSlotSelectionScreen> createState() =>
@@ -23,10 +22,13 @@ class TimeSlotSelectionScreen extends StatefulWidget {
 
 class _TimeSlotSelectionScreenState extends State<TimeSlotSelectionScreen> {
   final ChargingApiService _apiService = ChargingApiService();
+
   List<TimeSlot> _timeSlots = [];
-  bool _isLoading = false;
-  DateTime _selectedDate = DateTime.now();
   TimeSlot? _selectedSlot;
+  bool _isLoading = false;
+
+  // Always start from today
+  DateTime _selectedDate = DateTime.now();
 
   @override
   void initState() {
@@ -35,56 +37,83 @@ class _TimeSlotSelectionScreenState extends State<TimeSlotSelectionScreen> {
   }
 
   Future<void> _loadTimeSlots() async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _selectedSlot = null;
+    });
+
     final slots = await _apiService.getAvailableTimeSlots(
       widget.charger.id,
       _selectedDate,
     );
-    setState(() {
-      _timeSlots = slots;
-      _isLoading = false;
-      _selectedSlot = null;
-    });
+
+    if (mounted) {
+      setState(() {
+        _timeSlots = slots;
+        _isLoading = false;
+      });
+    }
   }
 
   Future<void> _selectDate() async {
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: _selectedDate,
+      // ── Cannot select past dates ──────────────────────────────
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 30)),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Colors.green,
+              onPrimary: Colors.white,
+              onSurface: Colors.black,
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
 
     if (picked != null && picked != _selectedDate) {
-      setState(() {
-        _selectedDate = picked;
-      });
+      setState(() => _selectedDate = picked);
       _loadTimeSlots();
     }
   }
 
-  void _onContinue() {
-    if (_selectedSlot == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select a time slot'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
+  String _formatDate(DateTime date) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
+    ];
+    const days = [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday'
+    ];
+    return '${days[date.weekday - 1]}, ${months[date.month - 1]} ${date.day}, ${date.year}';
+  }
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => BookingConfirmationScreen(
-          station: widget.station,
-          charger: widget.charger,
-          vehicle: widget.vehicle,
-          timeSlot: _selectedSlot!,
-        ),
-      ),
-    );
+  bool _isToday(DateTime date) {
+    final now = DateTime.now();
+    return date.year == now.year &&
+        date.month == now.month &&
+        date.day == now.day;
   }
 
   @override
@@ -96,10 +125,15 @@ class _TimeSlotSelectionScreenState extends State<TimeSlotSelectionScreen> {
       ),
       body: Column(
         children: [
-          // Date Selector
+          // ── Date selector ────────────────────────────────────────
           Container(
+            margin: const EdgeInsets.all(16),
             padding: const EdgeInsets.all(16),
-            color: Colors.green.shade50,
+            decoration: BoxDecoration(
+              color: Colors.green.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.green.shade200),
+            ),
             child: Row(
               children: [
                 const Icon(Icons.calendar_today, color: Colors.green),
@@ -108,15 +142,16 @@ class _TimeSlotSelectionScreenState extends State<TimeSlotSelectionScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'Selected Date',
                         style: TextStyle(
                           fontSize: 12,
-                          color: Colors.grey,
+                          color: Colors.grey[600],
                         ),
                       ),
+                      const SizedBox(height: 2),
                       Text(
-                        DateFormat('EEEE, MMM dd, yyyy').format(_selectedDate),
+                        _formatDate(_selectedDate),
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -127,26 +162,58 @@ class _TimeSlotSelectionScreenState extends State<TimeSlotSelectionScreen> {
                 ),
                 ElevatedButton.icon(
                   onPressed: _selectDate,
-                  icon: const Icon(Icons.edit_calendar,
-                      size: 18, color: Colors.white),
-                  label: const Text('Change',
-                      style: TextStyle(color: Colors.white)),
+                  icon: const Icon(Icons.edit_calendar, size: 18),
+                  label: const Text('Change'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
                   ),
                 ),
               ],
             ),
           ),
 
-          // Time Slots List
+          // ── Today notice ─────────────────────────────────────────
+          if (_isToday(_selectedDate))
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.blue.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline,
+                      size: 16, color: Colors.blue.shade600),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Showing future slots only. Past slots are hidden.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.blue.shade700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+          const SizedBox(height: 8),
+
+          // ── Time slots list ──────────────────────────────────────
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _timeSlots.isEmpty
                     ? _buildEmptyState()
                     : ListView.builder(
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
                         itemCount: _timeSlots.length,
                         itemBuilder: (context, index) {
                           return _buildTimeSlotCard(_timeSlots[index]);
@@ -154,8 +221,47 @@ class _TimeSlotSelectionScreenState extends State<TimeSlotSelectionScreen> {
                       ),
           ),
 
-          // Bottom Bar
-          _buildBottomBar(),
+          // ── Continue button ──────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: SizedBox(
+              width: double.infinity,
+              height: 56,
+              child: ElevatedButton(
+                onPressed: _selectedSlot != null
+                    ? () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => BookingConfirmationScreen(
+                              station: widget.station,
+                              charger: widget.charger,
+                              vehicle: widget.vehicle,
+                              timeSlot: _selectedSlot!,
+                              bookingDate: _selectedDate,
+                            ),
+                          ),
+                        );
+                      }
+                    : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: Colors.grey[300],
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+                child: const Text(
+                  'Continue to Confirmation',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -166,26 +272,37 @@ class _TimeSlotSelectionScreenState extends State<TimeSlotSelectionScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.event_busy, size: 80, color: Colors.grey[400]),
+          Icon(Icons.schedule, size: 80, color: Colors.grey[400]),
           const SizedBox(height: 16),
-          const Text(
-            'No Time Slots Available',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          Text(
+            _isToday(_selectedDate)
+                ? 'No more slots available today'
+                : 'No slots available for this date',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[600],
+            ),
           ),
           const SizedBox(height: 8),
           Text(
-            'Please select a different date',
-            style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+            _isToday(_selectedDate)
+                ? 'Please select a future date to book'
+                : 'All slots may be booked. Try another date.',
+            style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+            textAlign: TextAlign.center,
           ),
           const SizedBox(height: 24),
           ElevatedButton.icon(
             onPressed: _selectDate,
-            icon: const Icon(Icons.calendar_today, color: Colors.white),
-            label: const Text('Select Date',
-                style: TextStyle(color: Colors.white)),
+            icon: const Icon(Icons.calendar_today),
+            label: const Text('Pick Another Date'),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.green,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
           ),
         ],
@@ -195,121 +312,103 @@ class _TimeSlotSelectionScreenState extends State<TimeSlotSelectionScreen> {
 
   Widget _buildTimeSlotCard(TimeSlot slot) {
     final isSelected = _selectedSlot?.id == slot.id;
-    final isAvailable = slot.isAvailable;
+    final isBooked = !slot.isAvailable;
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: isSelected ? 8 : 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: isSelected ? Colors.green : Colors.transparent,
-          width: 2,
-        ),
-      ),
-      child: InkWell(
-        onTap: isAvailable
-            ? () {
-                setState(() {
-                  _selectedSlot = slot;
-                });
-              }
-            : null,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: isAvailable
-                      ? (isSelected
-                          ? Colors.green.withOpacity(0.1)
-                          : Colors.grey.withOpacity(0.1))
-                      : Colors.red.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  Icons.access_time,
-                  color: isAvailable
-                      ? (isSelected ? Colors.green : Colors.grey[600])
-                      : Colors.red,
-                  size: 32,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${slot.startTime} - ${slot.endTime}',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: isAvailable ? Colors.black : Colors.grey,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      isAvailable ? 'Available' : 'Booked',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: isAvailable ? Colors.green : Colors.red,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (isSelected)
-                const Icon(
-                  Icons.check_circle,
-                  color: Colors.green,
-                  size: 28,
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+    // Format time to remove seconds — 08:00:00 → 08:00
+    String formatTime(String t) {
+      final parts = t.split(':');
+      return '${parts[0]}:${parts[1]}';
+    }
 
-  Widget _buildBottomBar() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
+    final timeText =
+        '${formatTime(slot.startTime)} - ${formatTime(slot.endTime)}';
+
+    return GestureDetector(
+      onTap: isBooked ? null : () => setState(() => _selectedSlot = slot),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isBooked
+              ? Colors.grey.shade100
+              : isSelected
+                  ? Colors.green.shade50
+                  : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isBooked
+                ? Colors.grey.shade300
+                : isSelected
+                    ? Colors.green
+                    : Colors.grey.shade200,
+            width: isSelected ? 2 : 1,
           ),
-        ],
-      ),
-      child: SafeArea(
-        child: SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            onPressed: _selectedSlot != null ? _onContinue : null,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+          boxShadow: isBooked
+              ? []
+              : [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+        ),
+        child: Row(
+          children: [
+            // Clock icon
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: isBooked
+                    ? Colors.red.shade50
+                    : isSelected
+                        ? Colors.green.shade100
+                        : Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                Icons.access_time,
+                color: isBooked
+                    ? Colors.red.shade400
+                    : isSelected
+                        ? Colors.green
+                        : Colors.grey,
+                size: 28,
               ),
             ),
-            child: const Text(
-              'Continue to Confirmation',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
+            const SizedBox(width: 16),
+
+            // Time text + status
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    timeText,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: isBooked ? Colors.grey.shade500 : Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    isBooked ? 'Booked' : 'Available',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: isBooked ? Colors.red.shade400 : Colors.green,
+                    ),
+                  ),
+                ],
               ),
             ),
-          ),
+
+            // Checkmark if selected
+            if (isSelected)
+              const Icon(Icons.check_circle, color: Colors.green, size: 28),
+          ],
         ),
       ),
     );

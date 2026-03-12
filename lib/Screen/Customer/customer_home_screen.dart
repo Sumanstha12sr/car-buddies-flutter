@@ -6,6 +6,9 @@ import 'charging_stations_screen.dart';
 import 'my_booking_screen.dart';
 import 'customer_account.dart';
 import 'my_vehicles_screen.dart';
+import 'services_screen.dart';
+import 'car_wash_booking_screen.dart';
+import 'ev_check_booking_screen.dart';
 
 class CustomerHomeScreen extends StatefulWidget {
   final User user;
@@ -65,6 +68,7 @@ class _CustomerHomePageState extends State<CustomerHomeScreen> {
 // ─────────────────────────────────────────────────────────────────────────────
 // Home Tab
 // ─────────────────────────────────────────────────────────────────────────────
+
 class _HomeTab extends StatefulWidget {
   final User user;
   final VoidCallback onExploreChargers;
@@ -97,6 +101,85 @@ class _HomeTabState extends State<_HomeTab> {
     }
   }
 
+  // ── Navigation helpers ─────────────────────────────────────────────────────
+
+  void _goToServices() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const ServicesScreen()),
+    );
+  }
+
+  void _goToCarWash() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const CarWashBookingScreen()),
+    );
+  }
+
+  void _goToEvCheck() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const EvCheckBookingScreen()),
+    );
+  }
+
+  void _showComingSoon(String title) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.purple.shade50,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.description,
+                  color: Colors.purple.shade400, size: 36),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              title,
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'This feature is coming soon.\nWe\'re working on it!',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.purple,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text('Got it',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Build ──────────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -125,7 +208,7 @@ class _HomeTabState extends State<_HomeTab> {
                 const Icon(Icons.notifications_outlined, color: Colors.black87),
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Notifications - Coming Soon!')),
+                const SnackBar(content: Text('Notifications')),
               );
             },
           ),
@@ -138,14 +221,14 @@ class _HomeTabState extends State<_HomeTab> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ── Search Bar ─────────────────────────────────────────────
+              // ── Search Bar ───────────────────────────────────────────
               Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: TextField(
                   readOnly: true,
                   onTap: () {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Search - Coming Soon!')),
+                      const SnackBar(content: Text('Search!')),
                     );
                   },
                   decoration: InputDecoration(
@@ -162,7 +245,7 @@ class _HomeTabState extends State<_HomeTab> {
                 ),
               ),
 
-              // ── Banner ─────────────────────────────────────────────────
+              // ── Banner ───────────────────────────────────────────────
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
                 child: ClipRRect(
@@ -213,7 +296,7 @@ class _HomeTabState extends State<_HomeTab> {
                               ),
                               const SizedBox(height: 6),
                               const Text(
-                                'Find & book charging stations nearby',
+                                'Find & book charging stations',
                                 style: TextStyle(
                                     color: Colors.white70, fontSize: 13),
                               ),
@@ -228,10 +311,7 @@ class _HomeTabState extends State<_HomeTab> {
 
               const SizedBox(height: 24),
 
-              // ── Quick Actions ──────────────────────────────────────────
-              // LayoutBuilder gives us the real available width so we can
-              // compute each tile's width without using Expanded (which
-              // caused the RenderBox layout crash).
+              // ── Quick Actions ────────────────────────────────────────
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
                 child: LayoutBuilder(
@@ -252,28 +332,20 @@ class _HomeTabState extends State<_HomeTab> {
                           icon: Icons.local_car_wash,
                           label: 'Car\nWash',
                           color: Colors.blue,
-                          onTap: () => _showServiceDetails(
-                            context,
-                            'Car Wash',
-                            'Professional exterior and interior car cleaning service.',
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        _buildQuickAction(
-                          width: tileW,
-                          icon: Icons.description,
-                          label: 'Blue\nBook',
-                          color: Colors.purple,
-                          onTap: () => _showServiceDetails(
-                            context,
-                            'Blue Book Renewal',
-                            'Hassle-free vehicle registration and blue book renewal service.',
-                          ),
+                          onTap: _goToCarWash, // ← real screen
                         ),
                         const SizedBox(width: 12),
                         _buildQuickAction(
                           width: tileW,
                           icon: Icons.electric_car,
+                          label: 'EV\nCheck',
+                          color: Colors.teal,
+                          onTap: _goToEvCheck, // ← real screen
+                        ),
+                        const SizedBox(width: 12),
+                        _buildQuickAction(
+                          width: tileW,
+                          icon: Icons.directions_car,
                           label: 'My\nVehicles',
                           color: Colors.orange,
                           onTap: () async {
@@ -294,14 +366,14 @@ class _HomeTabState extends State<_HomeTab> {
 
               const SizedBox(height: 24),
 
-              // ── Nearby Stations ────────────────────────────────────────
+              // ── Nearby Stations ──────────────────────────────────────
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Text(
-                      'Nearby Stations',
+                      'Available Charging Stations',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -347,56 +419,62 @@ class _HomeTabState extends State<_HomeTab> {
 
               const SizedBox(height: 24),
 
-              // ── Other Services ─────────────────────────────────────────
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16.0),
-                child: Text(
-                  'Other Services',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
+              // ── Our Services ─────────────────────────────────────────
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Our Services',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: _goToServices,
+                      child: const Text('See All',
+                          style: TextStyle(color: Colors.green)),
+                    ),
+                  ],
                 ),
               ),
 
               const SizedBox(height: 12),
 
+              // Car Wash — real booking
               _buildServiceCard(
                 title: 'Car Wash',
-                subtitle: 'Professional cleaning service',
-                price: 'NPR 500/wash',
+                subtitle: 'Full wash, interior & exterior cleaning',
+                badge: 'Book Now',
+                badgeColor: Colors.blue,
                 icon: Icons.local_car_wash,
                 color: Colors.blue,
-                onTap: () => _showServiceDetails(
-                  context,
-                  'Car Wash',
-                  'Professional exterior and interior car cleaning service.',
-                ),
+                onTap: _goToCarWash,
               ),
-              _buildServiceCard(
-                title: 'Blue Book Renewal',
-                subtitle: 'Vehicle registration renewal',
-                price: 'NPR 800/service',
-                icon: Icons.description,
-                color: Colors.purple,
-                onTap: () => _showServiceDetails(
-                  context,
-                  'Blue Book Renewal',
-                  'Hassle-free vehicle registration and blue book renewal service.',
-                ),
-              ),
+
+              // EV Check — real booking
               _buildServiceCard(
                 title: 'EV Check',
-                subtitle: 'Vehicle health & battery inspection',
-                price: 'NPR 1000/service',
-                icon: Icons.build,
-                color: Colors.orange,
-                onTap: () => _showServiceDetails(
-                  context,
-                  'EV Check',
-                  'Comprehensive electric vehicle health and battery inspection.',
-                ),
+                subtitle: 'Battery health & vehicle diagnostic',
+                badge: 'Book Now',
+                badgeColor: Colors.teal,
+                icon: Icons.electric_car,
+                color: Colors.teal,
+                onTap: _goToEvCheck,
+              ),
+
+              // Blue Book — coming soon
+              _buildServiceCard(
+                title: 'Blue Book Renewal',
+                subtitle: 'Vehicle registration & renewal',
+                badge: 'Coming Soon',
+                badgeColor: Colors.grey,
+                icon: Icons.description,
+                color: Colors.purple,
+                onTap: () => _showComingSoon('Blue Book Renewal'),
               ),
 
               const SizedBox(height: 32),
@@ -527,7 +605,8 @@ class _HomeTabState extends State<_HomeTab> {
   Widget _buildServiceCard({
     required String title,
     required String subtitle,
-    required String price,
+    required String badge,
+    required Color badgeColor,
     required IconData icon,
     required Color color,
     required VoidCallback onTap,
@@ -570,7 +649,7 @@ class _HomeTabState extends State<_HomeTab> {
                       Text(
                         title,
                         style: const TextStyle(
-                          fontSize: 16,
+                          fontSize: 15,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -582,74 +661,29 @@ class _HomeTabState extends State<_HomeTab> {
                     ],
                   ),
                 ),
-                Text(
-                  price,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    color: color,
+                // Badge
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: badgeColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    badge,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: badgeColor,
+                    ),
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 6),
                 Icon(Icons.arrow_forward_ios,
-                    size: 14, color: Colors.grey[400]),
+                    size: 13, color: Colors.grey[400]),
               ],
             ),
           ),
-        ),
-      ),
-    );
-  }
-
-  void _showServiceDetails(
-      BuildContext context, String title, String description) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              description,
-              style: TextStyle(fontSize: 15, color: Colors.grey[600]),
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Booking $title - Coming Soon!')),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                ),
-                child: const Text(
-                  'Book Now',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ),
-          ],
         ),
       ),
     );

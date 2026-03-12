@@ -99,7 +99,7 @@ class WelcomeScreen extends StatelessWidget {
                         onPressed: () {
                           Navigator.pushNamed(
                             context,
-                            '/loginselector',
+                            '/login',
                           ); // Navigate to Login screen
                         },
                         style: ElevatedButton.styleFrom(

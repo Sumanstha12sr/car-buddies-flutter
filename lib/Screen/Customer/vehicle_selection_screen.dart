@@ -1,5 +1,3 @@
-// Create file: lib/screens/customer/vehicle_selection_screen.dart
-
 import 'package:flutter/material.dart';
 import '../../../models/charging_models.dart';
 import '../../../services/charging_api_service.dart';
@@ -11,10 +9,10 @@ class VehicleSelectionScreen extends StatefulWidget {
   final Charger charger;
 
   const VehicleSelectionScreen({
-    Key? key,
+    super.key,
     required this.station,
     required this.charger,
-  }) : super(key: key);
+  });
 
   @override
   State<VehicleSelectionScreen> createState() => _VehicleSelectionScreenState();

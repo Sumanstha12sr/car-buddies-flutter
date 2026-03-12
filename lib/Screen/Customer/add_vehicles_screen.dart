@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../services/charging_api_service.dart';
 
 class AddVehicleScreen extends StatefulWidget {
-  const AddVehicleScreen({Key? key}) : super(key: key);
+  const AddVehicleScreen({super.key});
 
   @override
   State<AddVehicleScreen> createState() => _AddVehicleScreenState();

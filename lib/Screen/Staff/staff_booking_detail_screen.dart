@@ -6,8 +6,7 @@ import '../../services/charging_api_service.dart';
 class StaffBookingDetailScreen extends StatefulWidget {
   final ChargingBooking booking;
 
-  const StaffBookingDetailScreen({Key? key, required this.booking})
-      : super(key: key);
+  const StaffBookingDetailScreen({super.key, required this.booking});
 
   @override
   State<StaffBookingDetailScreen> createState() =>

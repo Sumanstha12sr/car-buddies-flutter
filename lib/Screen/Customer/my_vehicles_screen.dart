@@ -3,7 +3,7 @@ import '../../models/charging_models.dart';
 import '../../services/charging_api_service.dart';
 
 class MyVehiclesScreen extends StatefulWidget {
-  const MyVehiclesScreen({Key? key}) : super(key: key);
+  const MyVehiclesScreen({super.key});
 
   @override
   State<MyVehiclesScreen> createState() => _MyVehiclesScreenState();
@@ -490,20 +490,20 @@ class _MyVehiclesScreenState extends State<MyVehiclesScreen> {
             const Divider(height: 24),
 
             // Vehicle Details
-            Row(
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
               children: [
                 _buildDetailChip(
                   Icons.battery_charging_full,
                   '${vehicle.batteryCapacity} kWh',
                   Colors.blue,
                 ),
-                const SizedBox(width: 8),
                 _buildDetailChip(
                   Icons.power,
                   vehicle.chargingPortType,
                   Colors.orange,
                 ),
-                const SizedBox(width: 8),
                 _buildDetailChip(
                   Icons.electric_car,
                   vehicle.vehicleType == 'electric' ? 'EV' : 'Hybrid',

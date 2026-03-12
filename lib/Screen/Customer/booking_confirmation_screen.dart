@@ -8,14 +8,16 @@ class BookingConfirmationScreen extends StatefulWidget {
   final Charger charger;
   final Vehicle vehicle;
   final TimeSlot timeSlot;
+  final DateTime bookingDate;
 
   const BookingConfirmationScreen({
-    Key? key,
+    super.key,
     required this.station,
     required this.charger,
     required this.vehicle,
     required this.timeSlot,
-  }) : super(key: key);
+    required this.bookingDate,
+  });
 
   @override
   State<BookingConfirmationScreen> createState() =>
@@ -42,7 +44,6 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
   }
 
   void _calculateEstimate() {
-    // Simple estimation: assume 50% battery charge needed
     _estimatedEnergy = widget.vehicle.batteryCapacity * 0.5;
     _estimatedCost = _estimatedEnergy * widget.charger.pricePerKwh;
     setState(() {});
@@ -51,25 +52,21 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
   Future<void> _confirmBooking() async {
     setState(() => _isLoading = true);
 
-    final bookingData = {
-      'vehicle': widget.vehicle.id,
-      'charger': widget.charger.id,
-      'time_slot': widget.timeSlot.id,
-      'booking_date': widget.timeSlot.date.toIso8601String().split('T')[0],
-      'start_time': widget.timeSlot.startTime,
-      'end_time': widget.timeSlot.endTime,
-      'estimated_energy': _estimatedEnergy,
-      'notes': _notesController.text.trim(),
-    };
-
-    final result = await _apiService.createBooking(bookingData);
+    // ── Updated to use named parameters ──────────────────────────
+    final result = await _apiService.createBooking(
+      chargerId: widget.charger.id,
+      vehicleId: widget.vehicle.id,
+      timeSlotId: widget.timeSlot.id,
+      bookingDate: widget.timeSlot.date.toIso8601String().split('T')[0],
+      estimatedEnergy: _estimatedEnergy,
+      notes: _notesController.text.trim(),
+    );
 
     setState(() => _isLoading = false);
 
-    if (result['success']) {
-      if (!mounted) return;
+    if (!mounted) return;
 
-      // Show success dialog
+    if (result['success']) {
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -83,7 +80,6 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
           actions: [
             TextButton(
               onPressed: () {
-                // Pop back to CustomerHomeScreen (not all the way to login)
                 int count = 0;
                 Navigator.of(context).popUntil((_) => count++ >= 4);
               },
@@ -95,22 +91,27 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                 Navigator.of(context).popUntil((_) => count++ >= 4);
               },
               style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-              child: const Text('View Bookings',
-                  style: TextStyle(color: Colors.white)),
+              child: const Text(
+                'View Bookings',
+                style: TextStyle(color: Colors.white),
+              ),
             ),
           ],
         ),
       );
     } else {
-      if (!mounted) return;
       String errorMessage = 'Failed to create booking';
-      if (result['data'] is Map && result['data'].containsKey('error')) {
-        errorMessage = result['data']['error'];
+      if (result['data'] is Map) {
+        errorMessage = result['data']['error'] ??
+            result['data']['detail'] ??
+            result['data']['non_field_errors']?.toString() ??
+            errorMessage;
       }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(errorMessage),
           backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
         ),
       );
     }
@@ -221,8 +222,10 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                       ],
                     ),
                     const Divider(height: 24),
-                    _buildInfoRow('Estimated Energy',
-                        '${_estimatedEnergy.toStringAsFixed(2)} kWh'),
+                    _buildInfoRow(
+                      'Estimated Energy',
+                      '${_estimatedEnergy.toStringAsFixed(2)} kWh',
+                    ),
                     const SizedBox(height: 8),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -309,6 +312,8 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
               ),
               textAlign: TextAlign.center,
             ),
+
+            const SizedBox(height: 32),
           ],
         ),
       ),

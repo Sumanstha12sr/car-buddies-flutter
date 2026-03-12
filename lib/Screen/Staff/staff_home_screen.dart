@@ -1,16 +1,11 @@
 import 'package:flutter/material.dart';
-import '../../models/user_model.dart';
-// ignore: unused_import
-import '../../models/charging_models.dart';
 import '../../services/api_service.dart';
 import '../../services/charging_api_service.dart';
 import '../Auth/login_screen.dart';
 import 'staff_bookings_screen.dart';
 
 class StaffHomeScreen extends StatefulWidget {
-  final User user;
-
-  const StaffHomeScreen({super.key, required this.user});
+  const StaffHomeScreen({Key? key}) : super(key: key);
 
   @override
   State<StaffHomeScreen> createState() => _StaffHomeScreenState();
@@ -136,7 +131,7 @@ class _StaffHomeScreenState extends State<StaffHomeScreen> {
                           style: TextStyle(color: Colors.white70, fontSize: 14),
                         ),
                         Text(
-                          widget.user.fullName,
+                          'Staff Member',
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 20,
@@ -240,7 +235,7 @@ class _StaffHomeScreenState extends State<StaffHomeScreen> {
               _buildActionCard(
                 icon: Icons.pending_actions,
                 title: 'Pending Bookings',
-                subtitle: '${_pendingBookings} bookings waiting for approval',
+                subtitle: '$_pendingBookings bookings waiting for approval',
                 color: Colors.orange,
                 onTap: () async {
                   await Navigator.push(

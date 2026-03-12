@@ -1,7 +1,7 @@
+import 'package:car_buddies/Screen/Auth/welcome_screen.dart';
 import 'package:flutter/material.dart';
 import '../../models/user_model.dart';
 import '../../services/api_service.dart';
-import '../Auth/login_screen.dart';
 
 class AccountPage extends StatelessWidget {
   final User user;
@@ -14,7 +14,7 @@ class AccountPage extends StatelessWidget {
       appBar: AppBar(
         title: const Text('My Account'),
         backgroundColor: Colors.green,
-        automaticallyImplyLeading: false, // ← removes back arrow
+        automaticallyImplyLeading: false, // removes back arrow
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -182,7 +182,7 @@ class AccountPage extends StatelessWidget {
       if (!context.mounted) return;
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        MaterialPageRoute(builder: (_) => const WelcomeScreen()),
         (route) => false,
       );
       ScaffoldMessenger.of(context).showSnackBar(
