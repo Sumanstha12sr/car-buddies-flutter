@@ -475,12 +475,10 @@ class _ServiceBookingDetailScreenState
             ),
           ),
           const SizedBox(height: 12),
-          ...children
-              .map((c) => Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: c,
-                  ))
-              .toList(),
+          ...children.map((c) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: c,
+              )),
         ],
       ),
     );

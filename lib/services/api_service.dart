@@ -3,9 +3,13 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://192.168.1.218:8000/api';
+  // static const String baseUrl = 'http:// 192.168.1.218:8000/api';
   //static const String baseUrl =
   // 'https://web-production-a06f0.up.railway.app/api';
+
+  static const String baseUrl =
+      'https://obeyingly-flamy-humberto.ngrok-free.dev/api';
+
   //  REGISTRATION
 
   Future<Map<String, dynamic>> customerRegister({

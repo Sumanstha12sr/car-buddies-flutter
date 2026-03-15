@@ -4,9 +4,12 @@ import '../models/charging_models.dart';
 import 'api_service.dart';
 
 class ChargingApiService {
-  static const String baseUrl = 'http://192.168.1.218:8000/api/charging';
+  // static const String baseUrl = 'http:// 192.168.1.218:8000/api/charging';
   //static const String baseUrl =
   // 'https://web-production-a06f0.up.railway.app/api/charging';
+  static const String baseUrl =
+      'https://obeyingly-flamy-humberto.ngrok-free.dev/api/charging';
+
   final ApiService _apiService = ApiService();
 
   // Auth headers

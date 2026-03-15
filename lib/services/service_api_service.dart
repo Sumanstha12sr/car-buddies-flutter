@@ -4,7 +4,10 @@ import '../models/service_models.dart';
 import 'api_service.dart';
 
 class ServiceApiService {
-  static const String baseUrl = 'http://192.168.1.218:8000/api/services';
+  //static const String baseUrl = 'http:// 192.168.1.218:8000/api/services';
+
+  static const String baseUrl =
+      'https://obeyingly-flamy-humberto.ngrok-free.dev/api/services';
   final ApiService _apiService = ApiService();
 
   Future<Map<String, String>> _getHeaders() async {
