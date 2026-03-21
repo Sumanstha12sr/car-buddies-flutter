@@ -20,6 +20,7 @@ class MyApp extends StatelessWidget {
         '/signup': (context) => const SignupScreen(),
         '/login': (context) => const LoginScreen(),
       },
+      debugShowCheckedModeBanner: false,
     );
   }
 }

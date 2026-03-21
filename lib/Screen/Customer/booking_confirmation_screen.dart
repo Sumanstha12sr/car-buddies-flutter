@@ -44,7 +44,7 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
   }
 
   void _calculateEstimate() {
-    _estimatedEnergy = widget.vehicle.batteryCapacity * 0.5;
+    _estimatedEnergy = (widget.vehicle.batteryCapacity ?? 0.0) * 0.5;
     _estimatedCost = _estimatedEnergy * widget.charger.pricePerKwh;
     setState(() {});
   }
@@ -171,7 +171,10 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                 _buildInfoRow('Name', widget.vehicle.vehicleName),
                 _buildInfoRow('Number', widget.vehicle.vehicleNumber),
                 _buildInfoRow(
-                    'Battery', '${widget.vehicle.batteryCapacity} kWh'),
+                    'Battery',
+                    widget.vehicle.batteryCapacity != null
+                        ? '${widget.vehicle.batteryCapacity} kWh'
+                        : 'N/A'),
               ],
             ),
 

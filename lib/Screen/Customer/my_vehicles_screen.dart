@@ -34,7 +34,7 @@ class _MyVehiclesScreenState extends State<MyVehiclesScreen> {
   Future<void> _deleteVehicle(Vehicle vehicle) async {
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (_) => AlertDialog(
         title: const Text('Delete Vehicle'),
         content:
             Text('Are you sure you want to delete ${vehicle.vehicleName}?'),
@@ -54,21 +54,22 @@ class _MyVehiclesScreenState extends State<MyVehiclesScreen> {
 
     if (confirm == true) {
       final success = await _apiService.deleteVehicle(vehicle.id);
+      if (!mounted) return;
       if (success) {
-        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Vehicle deleted successfully'),
             backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
           ),
         );
         _loadVehicles();
       } else {
-        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Failed to delete vehicle'),
             backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
           ),
         );
       }
@@ -77,12 +78,13 @@ class _MyVehiclesScreenState extends State<MyVehiclesScreen> {
 
   Future<void> _setDefaultVehicle(Vehicle vehicle) async {
     final success = await _apiService.setDefaultVehicle(vehicle.id);
+    if (!mounted) return;
     if (success) {
-      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('${vehicle.vehicleName} set as default'),
           backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
         ),
       );
       _loadVehicles();
@@ -106,242 +108,282 @@ class _MyVehiclesScreenState extends State<MyVehiclesScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) => StatefulBuilder(
-        builder: (context, setSheetState) => Padding(
-          padding: EdgeInsets.only(
-            left: 16,
-            right: 16,
-            top: 16,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 16,
-          ),
-          child: Form(
-            key: formKey,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Sheet Header
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Add New Vehicle',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
+        builder: (context, setSheetState) {
+          final bool showEvFields =
+              vehicleType == 'electric' || vehicleType == 'hybrid';
+
+          return Padding(
+            padding: EdgeInsets.only(
+              left: 16,
+              right: 16,
+              top: 16,
+              bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+            ),
+            child: Form(
+              key: formKey,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // ── Header ──────────────────────────────────
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Add New Vehicle',
+                          style: TextStyle(
+                              fontSize: 20, fontWeight: FontWeight.bold),
                         ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Vehicle Name
-                  TextFormField(
-                    controller: vehicleNameController,
-                    decoration: InputDecoration(
-                      labelText: 'Vehicle Name *',
-                      hintText: 'e.g., BYD Atto 3',
-                      prefixIcon: const Icon(Icons.directions_car),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ],
                     ),
-                    validator: (value) => value == null || value.isEmpty
-                        ? 'Please enter vehicle name'
-                        : null,
-                  ),
-                  const SizedBox(height: 12),
+                    const SizedBox(height: 16),
 
-                  // Vehicle Number
-                  TextFormField(
-                    controller: vehicleNumberController,
-                    textCapitalization: TextCapitalization.characters,
-                    decoration: InputDecoration(
-                      labelText: 'Vehicle Number *',
-                      hintText: 'e.g., BA-1-PA-1234',
-                      prefixIcon: const Icon(Icons.pin),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
+                    // ── Vehicle Type (first so fields update) ────
+                    DropdownButtonFormField<String>(
+                      value: vehicleType,
+                      decoration: InputDecoration(
+                        labelText: 'Vehicle Type *',
+                        prefixIcon: const Icon(Icons.category),
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12)),
                       ),
-                    ),
-                    validator: (value) => value == null || value.isEmpty
-                        ? 'Please enter vehicle number'
-                        : null,
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Vehicle Type Dropdown
-                  DropdownButtonFormField<String>(
-                    value: vehicleType,
-                    decoration: InputDecoration(
-                      labelText: 'Vehicle Type *',
-                      prefixIcon: const Icon(Icons.category),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    items: const [
-                      DropdownMenuItem(
+                      items: const [
+                        DropdownMenuItem(
                           value: 'electric',
-                          child: Text('Electric Vehicle (EV)')),
-                      DropdownMenuItem(
-                          value: 'hybrid', child: Text('Hybrid Vehicle')),
-                    ],
-                    onChanged: (value) {
-                      setSheetState(() => vehicleType = value!);
-                    },
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Battery Capacity
-                  TextFormField(
-                    controller: batteryCapacityController,
-                    keyboardType: TextInputType.number,
-                    decoration: InputDecoration(
-                      labelText: 'Battery Capacity (kWh) *',
-                      hintText: 'e.g., 60.48',
-                      prefixIcon: const Icon(Icons.battery_charging_full),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter battery capacity';
-                      }
-                      if (double.tryParse(value) == null) {
-                        return 'Please enter a valid number';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Charging Port Type
-                  TextFormField(
-                    controller: chargingPortController,
-                    decoration: InputDecoration(
-                      labelText: 'Charging Port Type *',
-                      hintText: 'e.g., CCS2, Type 2',
-                      prefixIcon: const Icon(Icons.power),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    validator: (value) => value == null || value.isEmpty
-                        ? 'Please enter charging port type'
-                        : null,
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Set as Default Toggle
-                  SwitchListTile(
-                    title: const Text('Set as Default Vehicle'),
-                    subtitle: const Text('Use this vehicle for quick booking'),
-                    value: isDefault,
-                    activeColor: Colors.green,
-                    contentPadding: EdgeInsets.zero,
-                    onChanged: (value) {
-                      setSheetState(() => isDefault = value);
-                    },
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Save Button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton(
-                      onPressed: isLoading
-                          ? null
-                          : () async {
-                              if (!formKey.currentState!.validate()) {
-                                return;
-                              }
-                              setSheetState(() => isLoading = true);
-
-                              final vehicleData = {
-                                'vehicle_name':
-                                    vehicleNameController.text.trim(),
-                                'vehicle_number': vehicleNumberController.text
-                                    .trim()
-                                    .toUpperCase(),
-                                'vehicle_type': vehicleType,
-                                'battery_capacity': double.parse(
-                                    batteryCapacityController.text),
-                                'charging_port_type':
-                                    chargingPortController.text.trim(),
-                                'is_default': isDefault,
-                              };
-
-                              final result =
-                                  await _apiService.addVehicle(vehicleData);
-                              setSheetState(() => isLoading = false);
-
-                              if (result['success']) {
-                                if (!context.mounted) return;
-                                Navigator.pop(context);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content:
-                                        Text('Vehicle added successfully!'),
-                                    backgroundColor: Colors.green,
-                                  ),
-                                );
-                                _loadVehicles();
-                              } else {
-                                if (!context.mounted) return;
-                                String errorMessage = 'Failed to add vehicle';
-                                if (result['data'] is Map) {
-                                  final errors = result['data'] as Map;
-                                  if (errors.containsKey('vehicle_number')) {
-                                    errorMessage = errors['vehicle_number'][0];
-                                  } else if (errors.containsKey('error')) {
-                                    errorMessage = errors['error'];
-                                  }
-                                }
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(errorMessage),
-                                    backgroundColor: Colors.red,
-                                  ),
-                                );
-                              }
-                            },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          child: Text('Electric Vehicle (EV)'),
                         ),
-                      ),
-                      child: isLoading
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 2,
-                              ),
-                            )
-                          : const Text(
-                              'Add Vehicle',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
+                        DropdownMenuItem(
+                          value: 'hybrid',
+                          child: Text('Hybrid Vehicle'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'ice',
+                          child: Text('Petrol / Diesel (ICE)'),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        setSheetState(() => vehicleType = value!);
+                      },
+                    ),
+
+                    // ICE info banner
+                    if (!showEvFields) ...[
+                      const SizedBox(height: 10),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.shade50,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.orange.shade200),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.info_outline,
+                                color: Colors.orange.shade700, size: 18),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'ICE vehicles can only book Car Wash services.',
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.orange.shade800),
                               ),
                             ),
+                          ],
+                        ),
+                      ),
+                    ],
+
+                    const SizedBox(height: 12),
+
+                    // ── Vehicle Name ─────────────────────────────
+                    TextFormField(
+                      controller: vehicleNameController,
+                      decoration: InputDecoration(
+                        labelText: 'Vehicle Name *',
+                        hintText: 'e.g., BYD Atto 3 / Toyota Corolla',
+                        prefixIcon: const Icon(Icons.directions_car),
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                      validator: (v) => v == null || v.isEmpty
+                          ? 'Please enter vehicle name'
+                          : null,
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 12),
+
+                    // ── Vehicle Number ───────────────────────────
+                    TextFormField(
+                      controller: vehicleNumberController,
+                      textCapitalization: TextCapitalization.characters,
+                      decoration: InputDecoration(
+                        labelText: 'Vehicle Number *',
+                        hintText: 'e.g., BA-1-PA-1234',
+                        prefixIcon: const Icon(Icons.pin),
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                      validator: (v) => v == null || v.isEmpty
+                          ? 'Please enter vehicle number'
+                          : null,
+                    ),
+                    const SizedBox(height: 12),
+
+                    // ── EV-only fields ───────────────────────────
+                    if (showEvFields) ...[
+                      TextFormField(
+                        controller: batteryCapacityController,
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          labelText: 'Battery Capacity (kWh) *',
+                          hintText: 'e.g., 60.48',
+                          prefixIcon: const Icon(Icons.battery_charging_full),
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                        validator: (v) {
+                          if (v == null || v.isEmpty) {
+                            return 'Please enter battery capacity';
+                          }
+                          if (double.tryParse(v) == null) {
+                            return 'Please enter a valid number';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: chargingPortController,
+                        decoration: InputDecoration(
+                          labelText: 'Charging Port Type *',
+                          hintText: 'e.g., CCS2, Type 2',
+                          prefixIcon: const Icon(Icons.power),
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                        validator: (v) => v == null || v.isEmpty
+                            ? 'Please enter charging port type'
+                            : null,
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+
+                    // ── Set Default ──────────────────────────────
+                    SwitchListTile(
+                      title: const Text('Set as Default Vehicle'),
+                      subtitle:
+                          const Text('Use this vehicle for quick booking'),
+                      value: isDefault,
+                      activeColor: Colors.green,
+                      contentPadding: EdgeInsets.zero,
+                      onChanged: (v) => setSheetState(() => isDefault = v),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // ── Save Button ──────────────────────────────
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton(
+                        onPressed: isLoading
+                            ? null
+                            : () async {
+                                if (!formKey.currentState!.validate()) {
+                                  return;
+                                }
+                                setSheetState(() => isLoading = true);
+
+                                final vehicleData = <String, dynamic>{
+                                  'vehicle_name':
+                                      vehicleNameController.text.trim(),
+                                  'vehicle_number': vehicleNumberController.text
+                                      .trim()
+                                      .toUpperCase(),
+                                  'vehicle_type': vehicleType,
+                                  'is_default': isDefault,
+                                };
+
+                                // Only add EV fields if EV/Hybrid
+                                if (showEvFields) {
+                                  vehicleData['battery_capacity'] =
+                                      double.parse(
+                                          batteryCapacityController.text);
+                                  vehicleData['charging_port_type'] =
+                                      chargingPortController.text.trim();
+                                }
+
+                                final result =
+                                    await _apiService.addVehicle(vehicleData);
+                                setSheetState(() => isLoading = false);
+
+                                if (result['success']) {
+                                  if (!context.mounted) return;
+                                  Navigator.pop(context);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content:
+                                          Text('Vehicle added successfully!'),
+                                      backgroundColor: Colors.green,
+                                      behavior: SnackBarBehavior.floating,
+                                    ),
+                                  );
+                                  _loadVehicles();
+                                } else {
+                                  if (!context.mounted) return;
+                                  String errorMessage = 'Failed to add vehicle';
+                                  if (result['data'] is Map) {
+                                    final errors = result['data'] as Map;
+                                    if (errors.containsKey('vehicle_number')) {
+                                      errorMessage =
+                                          errors['vehicle_number'][0];
+                                    } else if (errors.containsKey('error')) {
+                                      errorMessage = errors['error'];
+                                    }
+                                  }
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(errorMessage),
+                                      backgroundColor: Colors.red,
+                                      behavior: SnackBarBehavior.floating,
+                                    ),
+                                  );
+                                }
+                              },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: isLoading
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Text(
+                                'Add Vehicle',
+                                style: TextStyle(
+                                    fontSize: 16, fontWeight: FontWeight.bold),
+                              ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                ),
               ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
@@ -349,9 +391,13 @@ class _MyVehiclesScreenState extends State<MyVehiclesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF7F8FA),
       appBar: AppBar(
-        title: const Text('My Vehicles'),
+        title: const Text('My Vehicles',
+            style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: Colors.green,
+        foregroundColor: Colors.white,
+        elevation: 0,
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -362,9 +408,7 @@ class _MyVehiclesScreenState extends State<MyVehiclesScreen> {
                   child: ListView.builder(
                     padding: const EdgeInsets.all(16),
                     itemCount: _vehicles.length,
-                    itemBuilder: (context, index) {
-                      return _buildVehicleCard(_vehicles[index]);
-                    },
+                    itemBuilder: (_, i) => _buildVehicleCard(_vehicles[i]),
                   ),
                 ),
       floatingActionButton: FloatingActionButton.extended(
@@ -372,6 +416,7 @@ class _MyVehiclesScreenState extends State<MyVehiclesScreen> {
         icon: const Icon(Icons.add),
         label: const Text('Add Vehicle'),
         backgroundColor: Colors.green,
+        foregroundColor: Colors.white,
       ),
     );
   }
@@ -383,15 +428,11 @@ class _MyVehiclesScreenState extends State<MyVehiclesScreen> {
         children: [
           Icon(Icons.directions_car, size: 80, color: Colors.grey[400]),
           const SizedBox(height: 16),
-          const Text(
-            'No Vehicles Added',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
+          const Text('No Vehicles Added',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
-          Text(
-            'Tap the button below to add your vehicle',
-            style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-          ),
+          Text('Tap the button below to add your vehicle',
+              style: TextStyle(fontSize: 14, color: Colors.grey[600])),
           const SizedBox(height: 24),
           ElevatedButton.icon(
             onPressed: _showAddVehicleSheet,
@@ -411,9 +452,12 @@ class _MyVehiclesScreenState extends State<MyVehiclesScreen> {
   }
 
   Widget _buildVehicleCard(Vehicle vehicle) {
+    final isEv = vehicle.isEv;
+    final typeColor = isEv ? Colors.green : Colors.orange;
+
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
-      elevation: 4,
+      elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: vehicle.isDefault
@@ -425,17 +469,20 @@ class _MyVehiclesScreenState extends State<MyVehiclesScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header Row
+            // ── Header Row ─────────────────────────────────────
             Row(
               children: [
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.1),
+                    color: typeColor.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(Icons.electric_car,
-                      color: Colors.green, size: 32),
+                  child: Icon(
+                    isEv ? Icons.electric_car : Icons.directions_car,
+                    color: typeColor,
+                    size: 32,
+                  ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -448,9 +495,7 @@ class _MyVehiclesScreenState extends State<MyVehiclesScreen> {
                             child: Text(
                               vehicle.vehicleName,
                               style: const TextStyle(
-                                fontSize: 17,
-                                fontWeight: FontWeight.bold,
-                              ),
+                                  fontSize: 17, fontWeight: FontWeight.bold),
                             ),
                           ),
                           if (vehicle.isDefault)
@@ -464,10 +509,9 @@ class _MyVehiclesScreenState extends State<MyVehiclesScreen> {
                               child: const Text(
                                 'Default',
                                 style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.green,
-                                ),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.green),
                               ),
                             ),
                         ],
@@ -476,10 +520,9 @@ class _MyVehiclesScreenState extends State<MyVehiclesScreen> {
                       Text(
                         vehicle.vehicleNumber,
                         style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.grey[700],
-                        ),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey[700]),
                       ),
                     ],
                   ),
@@ -487,67 +530,56 @@ class _MyVehiclesScreenState extends State<MyVehiclesScreen> {
               ],
             ),
 
-            const Divider(height: 24),
+            const Divider(height: 20),
 
-            // Vehicle Details
+            // ── Detail Chips ────────────────────────────────────
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: [
-                _buildDetailChip(
-                  Icons.battery_charging_full,
-                  '${vehicle.batteryCapacity} kWh',
-                  Colors.blue,
-                ),
-                _buildDetailChip(
-                  Icons.power,
-                  vehicle.chargingPortType,
-                  Colors.orange,
-                ),
-                _buildDetailChip(
-                  Icons.electric_car,
-                  vehicle.vehicleType == 'electric' ? 'EV' : 'Hybrid',
-                  Colors.green,
-                ),
+                _chip(Icons.category, vehicle.vehicleTypeLabel, typeColor),
+                if (isEv && vehicle.batteryCapacity != null)
+                  _chip(Icons.battery_charging_full,
+                      '${vehicle.batteryCapacity} kWh', Colors.blue),
+                if (isEv &&
+                    vehicle.chargingPortType != null &&
+                    vehicle.chargingPortType!.isNotEmpty)
+                  _chip(Icons.power, vehicle.chargingPortType!, Colors.purple),
+                if (!isEv)
+                  _chip(Icons.local_car_wash, 'Car Wash Only', Colors.orange),
               ],
             ),
 
             const SizedBox(height: 16),
 
-            // Action Buttons
+            // ── Action Buttons ──────────────────────────────────
             Row(
               children: [
-                // Set Default Button (only show if not already default)
                 if (!vehicle.isDefault)
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: () => _setDefaultVehicle(vehicle),
-                      icon: const Icon(Icons.star_outline, size: 18),
+                      icon: const Icon(Icons.star_outline, size: 16),
                       label: const Text('Set Default'),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: Colors.green,
                         side: const BorderSide(color: Colors.green),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
+                            borderRadius: BorderRadius.circular(10)),
                       ),
                     ),
                   ),
-
                 if (!vehicle.isDefault) const SizedBox(width: 12),
-
-                // Delete Button
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: () => _deleteVehicle(vehicle),
-                    icon: const Icon(Icons.delete_outline, size: 18),
+                    icon: const Icon(Icons.delete_outline, size: 16),
                     label: const Text('Remove'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.red,
                       side: const BorderSide(color: Colors.red),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
+                          borderRadius: BorderRadius.circular(10)),
                     ),
                   ),
                 ),
@@ -559,7 +591,7 @@ class _MyVehiclesScreenState extends State<MyVehiclesScreen> {
     );
   }
 
-  Widget _buildDetailChip(IconData icon, String label, Color color) {
+  Widget _chip(IconData icon, String label, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
@@ -569,16 +601,11 @@ class _MyVehiclesScreenState extends State<MyVehiclesScreen> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: color),
+          Icon(icon, size: 13, color: color),
           const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: color,
-            ),
-          ),
+          Text(label,
+              style: TextStyle(
+                  fontSize: 12, fontWeight: FontWeight.w600, color: color)),
         ],
       ),
     );

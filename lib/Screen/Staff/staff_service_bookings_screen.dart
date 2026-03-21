@@ -51,7 +51,7 @@ class _StaffServiceBookingsScreenState extends State<StaffServiceBookingsScreen>
     ]);
     setState(() {
       _allBookings = results[0] as List<ServiceBooking>;
-      _mechanics = results[1] as List<dynamic>;
+      _mechanics = results[1];
       _isLoading = false;
     });
   }

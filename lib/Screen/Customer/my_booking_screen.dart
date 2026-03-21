@@ -10,10 +10,10 @@ class MyBookingsScreen extends StatefulWidget {
   const MyBookingsScreen({super.key});
 
   @override
-  State<MyBookingsScreen> createState() => _MyBookingsScreenState();
+  State<MyBookingsScreen> createState() => MyBookingsScreenState();
 }
 
-class _MyBookingsScreenState extends State<MyBookingsScreen>
+class MyBookingsScreenState extends State<MyBookingsScreen>
     with SingleTickerProviderStateMixin {
   final ChargingApiService _chargingApi = ChargingApiService();
   final ServiceApiService _serviceApi = ServiceApiService();
@@ -30,7 +30,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _loadAll();
+    loadAll();
   }
 
   @override
@@ -39,7 +39,8 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
     super.dispose();
   }
 
-  Future<void> _loadAll() async {
+  // Public so customer_home_screen can call it when tab switches
+  Future<void> loadAll() async {
     _loadChargingBookings();
     _loadServiceBookings();
   }
@@ -641,7 +642,7 @@ class _ServiceCard extends StatelessWidget {
                 ),
                 const Spacer(),
                 Text(
-                  'NPR ${(booking.estimatedCost ?? booking.servicePrice).toStringAsFixed(0)}',
+                  'NPR ${(booking.estimatedCost != null ? booking.estimatedCost! : booking.servicePrice).toStringAsFixed(0)}',
                   style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.bold,

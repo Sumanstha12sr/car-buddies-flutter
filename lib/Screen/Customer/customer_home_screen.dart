@@ -22,6 +22,10 @@ class CustomerHomeScreen extends StatefulWidget {
 class _CustomerHomePageState extends State<CustomerHomeScreen> {
   int _currentIndex = 0;
 
+  // GlobalKey to call loadAll() on MyBookingsScreen when tab is tapped
+  final GlobalKey<MyBookingsScreenState> _bookingsKey =
+      GlobalKey<MyBookingsScreenState>();
+
   late final List<Widget> _pages;
 
   @override
@@ -32,34 +36,67 @@ class _CustomerHomePageState extends State<CustomerHomeScreen> {
           user: widget.user,
           onExploreChargers: () => setState(() => _currentIndex = 1)),
       const ChargingStationsScreen(),
-      const MyBookingsScreen(),
+      MyBookingsScreen(key: _bookingsKey),
       AccountPage(user: widget.user),
     ];
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _pages,
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (index) => setState(() => _currentIndex = index),
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: Colors.green,
-        unselectedItemColor: Colors.grey,
-        selectedFontSize: 12,
-        unselectedFontSize: 12,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.ev_station), label: 'Chargers'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.book_online), label: 'My Bookings'),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Account'),
-        ],
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (didPop) async {
+        if (didPop) return;
+        final shouldExit = await showDialog<bool>(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: const Text('Exit App'),
+            content: const Text('Are you sure you want to exit?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('No'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: const Text('Yes, Exit'),
+              ),
+            ],
+          ),
+        );
+        if (shouldExit == true && context.mounted) {
+          Navigator.of(context).pop();
+        }
+      },
+      child: Scaffold(
+        body: IndexedStack(
+          index: _currentIndex,
+          children: _pages,
+        ),
+        bottomNavigationBar: BottomNavigationBar(
+          currentIndex: _currentIndex,
+          onTap: (index) {
+            setState(() => _currentIndex = index);
+            // Immediately refresh bookings when customer taps My Bookings tab
+            if (index == 2) {
+              _bookingsKey.currentState?.loadAll();
+            }
+          },
+          type: BottomNavigationBarType.fixed,
+          selectedItemColor: Colors.green,
+          unselectedItemColor: Colors.grey,
+          selectedFontSize: 12,
+          unselectedFontSize: 12,
+          items: const [
+            BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+            BottomNavigationBarItem(
+                icon: Icon(Icons.ev_station), label: 'Chargers'),
+            BottomNavigationBarItem(
+                icon: Icon(Icons.book_online), label: 'My Bookings'),
+            BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Account'),
+          ],
+        ),
       ),
     );
   }

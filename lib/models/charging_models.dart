@@ -4,9 +4,9 @@ class Vehicle {
   final String id;
   final String vehicleName;
   final String vehicleNumber;
-  final String vehicleType;
-  final double batteryCapacity;
-  final String chargingPortType;
+  final String vehicleType; // 'electric', 'hybrid', 'ice'
+  final double? batteryCapacity; // nullable for ICE
+  final String? chargingPortType; // nullable for ICE
   final bool isDefault;
   final DateTime createdAt;
 
@@ -15,21 +15,39 @@ class Vehicle {
     required this.vehicleName,
     required this.vehicleNumber,
     required this.vehicleType,
-    required this.batteryCapacity,
-    required this.chargingPortType,
+    this.batteryCapacity,
+    this.chargingPortType,
     required this.isDefault,
     required this.createdAt,
   });
+
+  // ── Helpers ──────────────────────────────────────────────────
+  bool get isEv => vehicleType == 'electric' || vehicleType == 'hybrid';
+  bool get isIce => vehicleType == 'ice';
+
+  String get vehicleTypeLabel {
+    switch (vehicleType) {
+      case 'electric':
+        return 'Electric (EV)';
+      case 'hybrid':
+        return 'Hybrid';
+      case 'ice':
+        return 'Petrol / Diesel';
+      default:
+        return vehicleType;
+    }
+  }
 
   factory Vehicle.fromJson(Map<String, dynamic> json) {
     return Vehicle(
       id: json['id'] ?? '',
       vehicleName: json['vehicle_name'] ?? '',
       vehicleNumber: json['vehicle_number'] ?? '',
-      vehicleType: json['vehicle_type'] ?? '',
-      batteryCapacity:
-          double.tryParse(json['battery_capacity'].toString()) ?? 0.0,
-      chargingPortType: json['charging_port_type'] ?? '',
+      vehicleType: json['vehicle_type'] ?? 'electric',
+      batteryCapacity: json['battery_capacity'] != null
+          ? double.tryParse(json['battery_capacity'].toString())
+          : null,
+      chargingPortType: json['charging_port_type'],
       isDefault: json['is_default'] ?? false,
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'])
@@ -38,14 +56,17 @@ class Vehicle {
   }
 
   Map<String, dynamic> toJson() {
-    return {
+    final map = <String, dynamic>{
       'vehicle_name': vehicleName,
       'vehicle_number': vehicleNumber,
       'vehicle_type': vehicleType,
-      'battery_capacity': batteryCapacity,
-      'charging_port_type': chargingPortType,
       'is_default': isDefault,
     };
+    if (batteryCapacity != null) map['battery_capacity'] = batteryCapacity;
+    if (chargingPortType != null && chargingPortType!.isNotEmpty) {
+      map['charging_port_type'] = chargingPortType;
+    }
+    return map;
   }
 }
 
@@ -146,9 +167,9 @@ class Charger {
 
 class TimeSlot {
   final String id;
-  final String chargerId; // optional — API may not return this
-  final String chargerName; // optional — API may not return this
-  final String chargerType; // optional — API may not return this
+  final String chargerId;
+  final String chargerName;
+  final String chargerType;
   final DateTime date;
   final String startTime;
   final String endTime;
@@ -168,11 +189,9 @@ class TimeSlot {
   factory TimeSlot.fromJson(Map<String, dynamic> json) {
     return TimeSlot(
       id: json['id'] ?? '',
-      // ── These fields may not be in API response — default to '' ──
       chargerId: json['charger'] ?? '',
       chargerName: json['charger_name'] ?? '',
       chargerType: json['charger_type'] ?? '',
-      // ── These are always returned ─────────────────────────────
       date:
           json['date'] != null ? DateTime.parse(json['date']) : DateTime.now(),
       startTime: json['start_time'] ?? '',
@@ -231,7 +250,6 @@ class ChargingBooking {
     return ChargingBooking(
       id: json['id'] ?? '',
       customerName: json['customer_name'] ?? '',
-      // ── vehicle/charger/timeslot may be UUID or nested ────────
       vehicleId: json['vehicle']?.toString() ?? '',
       vehicleNumber: json['vehicle_number'] ?? '',
       vehicleName: json['vehicle_name'] ?? '',

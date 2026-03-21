@@ -4,8 +4,6 @@ import '../models/service_models.dart';
 import 'api_service.dart';
 
 class ServiceApiService {
-  //static const String baseUrl = 'http:// 192.168.1.218:8000/api/services';
-
   static const String baseUrl =
       'https://obeyingly-flamy-humberto.ngrok-free.dev/api/services';
   final ApiService _apiService = ApiService();
@@ -298,6 +296,52 @@ class ServiceApiService {
     } catch (e) {
       print('❌ staffGetServiceStatistics exception: $e');
       return null;
+    }
+  }
+
+  // ==================== CUSTOMER ANALYTICS ====================
+
+  /// Get customer analytics (spending, trends, bookings breakdown)
+  Future<Map<String, dynamic>?> getCustomerAnalytics() async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.get(
+        Uri.parse('$baseUrl/customer/analytics/'),
+        headers: headers,
+      );
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+      print('❌ getCustomerAnalytics: ${response.statusCode}');
+      return null;
+    } catch (e) {
+      print('❌ getCustomerAnalytics exception: $e');
+      return null;
+    }
+  }
+
+  // ==================== CONFLICT CHECK ====================
+
+  /// Check which hours are already booked for a vehicle on a date
+  /// Returns list of booked hours e.g. [9, 10, 14]
+  Future<List<int>> getVehicleBookedSlots({
+    required String vehicleId,
+    required String date, // format: YYYY-MM-DD
+  }) async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.get(
+        Uri.parse('$baseUrl/vehicle/$vehicleId/booked-slots/?date=$date'),
+        headers: headers,
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return List<int>.from(data['booked_hours'] ?? []);
+      }
+      return [];
+    } catch (e) {
+      print('❌ getVehicleBookedSlots exception: $e');
+      return [];
     }
   }
 }

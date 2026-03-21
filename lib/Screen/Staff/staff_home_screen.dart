@@ -80,224 +80,257 @@ class _StaffHomeScreenState extends State<StaffHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey[100],
-      appBar: AppBar(
-        title: const Text(
-          'Staff Dashboard',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: Colors.green,
-        foregroundColor: Colors.white,
-        automaticallyImplyLeading: false,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              final confirm = await showDialog<bool>(
-                context: context,
-                builder: (_) => AlertDialog(
-                  title: const Text('Logout'),
-                  content: const Text('Are you sure you want to logout?'),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, false),
-                      child: const Text('Cancel'),
-                    ),
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, true),
-                      style: TextButton.styleFrom(foregroundColor: Colors.red),
-                      child: const Text('Logout'),
-                    ),
-                  ],
-                ),
-              );
-              if (confirm == true) {
-                await ApiService().logout();
-                if (!context.mounted) return;
-                Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(builder: (_) => const LoginScreen()),
-                  (route) => false,
-                );
-              }
-            },
-          ),
-        ],
-      ),
-      body: RefreshIndicator(
-        onRefresh: _loadStatistics,
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ── Welcome Card ─────────────────────────────────
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Colors.green.shade400, Colors.green.shade700],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Row(
-                  children: [
-                    const CircleAvatar(
-                      radius: 30,
-                      backgroundColor: Colors.white24,
-                      child: Icon(Icons.person, color: Colors.white, size: 32),
-                    ),
-                    const SizedBox(width: 16),
-                    const Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Welcome back,',
-                            style:
-                                TextStyle(color: Colors.white70, fontSize: 14)),
-                        Text('Staff Member',
-                            style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold)),
-                        Text('Staff Member',
-                            style:
-                                TextStyle(color: Colors.white70, fontSize: 12)),
-                      ],
-                    ),
-                  ],
-                ),
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (didPop) async {
+        if (didPop) return;
+        final shouldExit = await showDialog<bool>(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: const Text('Exit Dashboard'),
+            content: const Text('Are you sure you want to exit?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('No'),
               ),
-
-              const SizedBox(height: 24),
-
-              // ── Charging Stats ───────────────────────────────
-              _sectionTitle(
-                  'EV Charging Bookings', Icons.ev_station, Colors.green),
-              const SizedBox(height: 12),
-
-              _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : GridView.count(
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      children: [
-                        _statCard('Total', _chargingTotal.toString(),
-                            Icons.book_online, Colors.blue),
-                        _statCard('Pending', _chargingPending.toString(),
-                            Icons.pending_actions, Colors.orange),
-                        _statCard('Confirmed', _chargingConfirmed.toString(),
-                            Icons.check_circle, Colors.green),
-                        _statCard("Today's", _chargingToday.toString(),
-                            Icons.today, Colors.purple),
-                      ],
-                    ),
-
-              const SizedBox(height: 24),
-
-              // ── Service Stats ────────────────────────────────
-              _sectionTitle('Service Bookings', Icons.miscellaneous_services,
-                  Colors.teal),
-              const SizedBox(height: 12),
-
-              _isLoading
-                  ? const SizedBox()
-                  : GridView.count(
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      children: [
-                        _statCard('Total', _serviceTotal.toString(),
-                            Icons.miscellaneous_services, Colors.teal),
-                        _statCard('Pending', _servicePending.toString(),
-                            Icons.pending_actions, Colors.orange),
-                        _statCard('In Progress', _serviceInProgress.toString(),
-                            Icons.autorenew, Colors.blue),
-                        _statCard("Today's", _serviceToday.toString(),
-                            Icons.today, Colors.purple),
-                      ],
-                    ),
-
-              const SizedBox(height: 24),
-
-              // ── Quick Actions ────────────────────────────────
-              const Text(
-                'Quick Actions',
-                style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: const Text('Yes, Exit'),
               ),
-              const SizedBox(height: 12),
-
-              // Manage Charging Bookings
-              _actionCard(
-                icon: Icons.ev_station,
-                title: 'Manage Charging Bookings',
-                subtitle: '$_chargingPending charging bookings pending',
-                color: Colors.green,
-                onTap: () async {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => const StaffBookingsScreen()),
-                  );
-                  _loadStatistics();
-                },
-              ),
-
-              const SizedBox(height: 12),
-
-              // Manage Service Bookings
-              _actionCard(
-                icon: Icons.miscellaneous_services,
-                title: 'Manage Service Bookings',
-                subtitle: '$_servicePending service bookings pending',
-                color: Colors.teal,
-                onTap: () async {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => const StaffServiceBookingsScreen()),
-                  );
-                  _loadStatistics();
-                },
-              ),
-
-              const SizedBox(height: 12),
-
-              // Pending Service Bookings shortcut
-              _actionCard(
-                icon: Icons.pending_actions,
-                title: 'Pending Service Bookings',
-                subtitle: '$_servicePending bookings waiting for confirmation',
-                color: Colors.orange,
-                onTap: () async {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const StaffServiceBookingsScreen(
-                          initialFilter: 'pending'),
-                    ),
-                  );
-                  _loadStatistics();
-                },
-              ),
-
-              const SizedBox(height: 24),
             ],
           ),
+        );
+        if (shouldExit == true && context.mounted) {
+          Navigator.of(context).pop();
+        }
+      },
+      child: Scaffold(
+        backgroundColor: Colors.grey[100],
+        appBar: AppBar(
+          title: const Text(
+            'Staff Dashboard',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          backgroundColor: Colors.green,
+          foregroundColor: Colors.white,
+          automaticallyImplyLeading: false,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.logout),
+              onPressed: () async {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (_) => AlertDialog(
+                    title: const Text('Logout'),
+                    content: const Text('Are you sure you want to logout?'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: const Text('Cancel'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        style:
+                            TextButton.styleFrom(foregroundColor: Colors.red),
+                        child: const Text('Logout'),
+                      ),
+                    ],
+                  ),
+                );
+                if (confirm == true) {
+                  await ApiService().logout();
+                  if (!context.mounted) return;
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (_) => const LoginScreen()),
+                    (route) => false,
+                  );
+                }
+              },
+            ),
+          ],
         ),
-      ),
+        body: RefreshIndicator(
+          onRefresh: _loadStatistics,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ── Welcome Card ─────────────────────────────────
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Colors.green.shade400, Colors.green.shade700],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Row(
+                    children: [
+                      const CircleAvatar(
+                        radius: 30,
+                        backgroundColor: Colors.white24,
+                        child:
+                            Icon(Icons.person, color: Colors.white, size: 32),
+                      ),
+                      const SizedBox(width: 16),
+                      const Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Welcome back,',
+                              style: TextStyle(
+                                  color: Colors.white70, fontSize: 14)),
+                          Text('Staff Member',
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold)),
+                          Text('Staff Member',
+                              style: TextStyle(
+                                  color: Colors.white70, fontSize: 12)),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                // ── Charging Stats ───────────────────────────────
+                _sectionTitle(
+                    'EV Charging Bookings', Icons.ev_station, Colors.green),
+                const SizedBox(height: 12),
+
+                _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : GridView.count(
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        children: [
+                          _statCard('Total', _chargingTotal.toString(),
+                              Icons.book_online, Colors.blue),
+                          _statCard('Pending', _chargingPending.toString(),
+                              Icons.pending_actions, Colors.orange),
+                          _statCard('Confirmed', _chargingConfirmed.toString(),
+                              Icons.check_circle, Colors.green),
+                          _statCard("Today's", _chargingToday.toString(),
+                              Icons.today, Colors.purple),
+                        ],
+                      ),
+
+                const SizedBox(height: 24),
+
+                // ── Service Stats ────────────────────────────────
+                _sectionTitle('Service Bookings', Icons.miscellaneous_services,
+                    Colors.teal),
+                const SizedBox(height: 12),
+
+                _isLoading
+                    ? const SizedBox()
+                    : GridView.count(
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        children: [
+                          _statCard('Total', _serviceTotal.toString(),
+                              Icons.miscellaneous_services, Colors.teal),
+                          _statCard('Pending', _servicePending.toString(),
+                              Icons.pending_actions, Colors.orange),
+                          _statCard(
+                              'In Progress',
+                              _serviceInProgress.toString(),
+                              Icons.autorenew,
+                              Colors.blue),
+                          _statCard("Today's", _serviceToday.toString(),
+                              Icons.today, Colors.purple),
+                        ],
+                      ),
+
+                const SizedBox(height: 24),
+
+                // ── Quick Actions ────────────────────────────────
+                const Text(
+                  'Quick Actions',
+                  style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87),
+                ),
+                const SizedBox(height: 12),
+
+                // Manage Charging Bookings
+                _actionCard(
+                  icon: Icons.ev_station,
+                  title: 'Manage Charging Bookings',
+                  subtitle: '$_chargingPending charging bookings pending',
+                  color: Colors.green,
+                  onTap: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const StaffBookingsScreen()),
+                    );
+                    _loadStatistics();
+                  },
+                ),
+
+                const SizedBox(height: 12),
+
+                // Manage Service Bookings
+                _actionCard(
+                  icon: Icons.miscellaneous_services,
+                  title: 'Manage Service Bookings',
+                  subtitle: '$_servicePending service bookings pending',
+                  color: Colors.teal,
+                  onTap: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const StaffServiceBookingsScreen()),
+                    );
+                    _loadStatistics();
+                  },
+                ),
+
+                const SizedBox(height: 12),
+
+                // Pending Service Bookings shortcut
+                _actionCard(
+                  icon: Icons.pending_actions,
+                  title: 'Pending Service Bookings',
+                  subtitle:
+                      '$_servicePending bookings waiting for confirmation',
+                  color: Colors.orange,
+                  onTap: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const StaffServiceBookingsScreen(
+                            initialFilter: 'pending'),
+                      ),
+                    );
+                    _loadStatistics();
+                  },
+                ),
+
+                const SizedBox(height: 24),
+              ],
+            ),
+          ),
+        ),
+      ), // closes PopScope
     );
   }
 
