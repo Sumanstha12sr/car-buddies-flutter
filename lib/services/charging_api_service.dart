@@ -4,15 +4,11 @@ import '../models/charging_models.dart';
 import 'api_service.dart';
 
 class ChargingApiService {
-  // static const String baseUrl = 'http:// 192.168.1.218:8000/api/charging';
-  //static const String baseUrl =
-  // 'https://web-production-a06f0.up.railway.app/api/charging';
   static const String baseUrl =
       'https://obeyingly-flamy-humberto.ngrok-free.dev/api/charging';
-
   final ApiService _apiService = ApiService();
 
-  // Auth headers
+  // ── Auth headers ─────────────────────────────────────────────────
   Future<Map<String, String>> _getHeaders() async {
     final token = await _apiService.getToken();
     return {
@@ -34,10 +30,10 @@ class ChargingApiService {
         final List<dynamic> data = jsonDecode(response.body);
         return data.map((json) => Vehicle.fromJson(json)).toList();
       }
-      print(' getVehicles error: ${response.statusCode} ${response.body}');
+      print('❌ getVehicles error: ${response.statusCode} ${response.body}');
       return [];
     } catch (e) {
-      print(' getVehicles exception: $e');
+      print('❌ getVehicles exception: $e');
       return [];
     }
   }
@@ -103,10 +99,10 @@ class ChargingApiService {
         return data.map((json) => ChargingStation.fromJson(json)).toList();
       }
       print(
-          ' getChargingStations error: ${response.statusCode} ${response.body}');
+          '❌ getChargingStations error: ${response.statusCode} ${response.body}');
       return [];
     } catch (e) {
-      print(' getChargingStations exception: $e');
+      print('❌ getChargingStations exception: $e');
       return [];
     }
   }
@@ -123,7 +119,7 @@ class ChargingApiService {
       }
       return null;
     } catch (e) {
-      print(' getStationDetail exception: $e');
+      print('❌ getStationDetail exception: $e');
       return null;
     }
   }
@@ -146,15 +142,14 @@ class ChargingApiService {
         return data.map((json) => Charger.fromJson(json)).toList();
       }
       print(
-          ' getAvailableChargers error: ${response.statusCode} ${response.body}');
+          '❌ getAvailableChargers error: ${response.statusCode} ${response.body}');
       return [];
     } catch (e) {
-      print(' getAvailableChargers exception: $e');
+      print('❌ getAvailableChargers exception: $e');
       return [];
     }
   }
 
-  // Get ALL chargers including occupied ones
   Future<List<Charger>> getAllChargers(String stationId, {String? type}) async {
     try {
       final headers = await _getHeaders();
@@ -174,42 +169,159 @@ class ChargingApiService {
       }
       return [];
     } catch (e) {
-      print(' getAllChargers exception: $e');
+      print('❌ getAllChargers exception: $e');
       return [];
     }
   }
 
   // ==================== TIME SLOTS ====================
 
+  /// Main method used by TimeSlotSelectionScreen
+  /// Backend returns a flat List of slot objects directly
+  Future<Map<String, dynamic>> getAvailableTimeSlotsWithMeta({
+    required String chargerId,
+    required DateTime date,
+    required String vehicleId,
+  }) async {
+    try {
+      final headers = await _getHeaders();
+      final dateStr = date.toIso8601String().split('T')[0];
+      final url =
+          '$baseUrl/chargers/$chargerId/time-slots/?date=$dateStr&vehicle_id=$vehicleId';
+
+      final response = await http.get(
+        Uri.parse(url),
+        headers: headers,
+      );
+
+      print('📡 timeslots status: ${response.statusCode}');
+      print('📡 timeslots body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final body = jsonDecode(response.body);
+
+        List<TimeSlot> slotsList = [];
+
+        // ── Handle both response shapes safely ───────────────────
+        // Shape A — flat list (current backend): [ {...}, {...} ]
+        // Shape B — wrapped map (old backend):   { "slots": [...] }
+        if (body is List) {
+          slotsList = body
+              .map((json) => _timeSlotFromJson(json as Map<String, dynamic>))
+              .toList();
+        } else if (body is Map && body['slots'] != null) {
+          slotsList = (body['slots'] as List)
+              .map((json) => _timeSlotFromJson(json as Map<String, dynamic>))
+              .toList();
+        }
+
+        return {
+          'slots': slotsList,
+          'hours_needed': (body is Map) ? (body['hours_needed'] ?? 1) : 1,
+          'charger_type': (body is Map) ? (body['charger_type'] ?? '') : '',
+          'charger_power': (body is Map) ? (body['charger_power'] ?? '') : '',
+          'vehicle_battery':
+              (body is Map) ? (body['vehicle_battery'] ?? '') : '',
+        };
+      }
+
+      print(
+          '❌ getAvailableTimeSlotsWithMeta: ${response.statusCode} ${response.body}');
+      return {'slots': <TimeSlot>[], 'hours_needed': 1};
+    } catch (e) {
+      print('❌ getAvailableTimeSlotsWithMeta exception: $e');
+      return {'slots': <TimeSlot>[], 'hours_needed': 1};
+    }
+  }
+
+  /// Fetches time slots for car wash / EV checkup from backend.
+  /// Passes serviceId so backend can check:
+  ///   - is_available: false  → another user booked this service at this time
+  ///   - user_conflict: true  → this customer already has a booking at this time
+  Future<List<Map<String, dynamic>>> getServiceTimeSlots({
+    required DateTime date,
+    String? serviceId,
+  }) async {
+    try {
+      final headers = await _getHeaders();
+      final dateStr = date.toIso8601String().split('T')[0];
+
+      // ── Always include service ID so backend can check per-service availability
+      // If serviceId is null, return empty — caller should wait for service selection
+      if (serviceId == null || serviceId.isEmpty) {
+        print('⚠️ getServiceTimeSlots: serviceId is null, skipping fetch');
+        return [];
+      }
+
+      final url =
+          '$baseUrl/services/time-slots/?date=$dateStr&service=$serviceId';
+
+      print('📡 getServiceTimeSlots url: $url');
+
+      final response = await http.get(Uri.parse(url), headers: headers);
+
+      print('📡 getServiceTimeSlots status: ${response.statusCode}');
+      print('📡 getServiceTimeSlots body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        return data.map((s) => Map<String, dynamic>.from(s)).toList();
+      }
+      return [];
+    } catch (e) {
+      print('❌ getServiceTimeSlots exception: $e');
+      return [];
+    }
+  }
+
+  /// Legacy method kept for backward compatibility
   Future<List<TimeSlot>> getAvailableTimeSlots(
       String chargerId, DateTime date) async {
     try {
       final headers = await _getHeaders();
       final dateStr = date.toIso8601String().split('T')[0];
-
-      // checking debugs
-      print('🔍 Fetching time slots:');
-      print('   chargerId: $chargerId');
-      print('   date: $dateStr');
-      print('   URL: $baseUrl/chargers/$chargerId/time-slots/?date=$dateStr');
-
       final response = await http.get(
         Uri.parse('$baseUrl/chargers/$chargerId/time-slots/?date=$dateStr'),
         headers: headers,
       );
-
-      print('📡 Time slots status: ${response.statusCode}');
-      print('📡 Time slots body: ${response.body}');
-
       if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
-        return data.map((json) => TimeSlot.fromJson(json)).toList();
+        final body = jsonDecode(response.body);
+        if (body is List) {
+          return body
+              .map((json) => _timeSlotFromJson(json as Map<String, dynamic>))
+              .toList();
+        } else if (body is Map && body['slots'] != null) {
+          return (body['slots'] as List)
+              .map((json) => _timeSlotFromJson(json as Map<String, dynamic>))
+              .toList();
+        }
       }
       return [];
     } catch (e) {
-      print(' getAvailableTimeSlots exception: $e');
+      print('❌ getAvailableTimeSlots exception: $e');
       return [];
     }
+  }
+
+  /// Parses a single slot JSON object into a TimeSlot
+  /// Handles both old and new backend response fields
+  TimeSlot _timeSlotFromJson(Map<String, dynamic> json) {
+    return TimeSlot(
+      id: json['id']?.toString() ?? '',
+      chargerId: json['charger']?.toString() ?? '',
+      chargerName: json['charger_name']?.toString() ?? '',
+      chargerType: json['charger_type']?.toString() ?? '',
+      date: json['date'] != null
+          ? DateTime.parse(json['date'].toString())
+          : DateTime.now(),
+      startTime: json['start_time']?.toString() ?? '',
+      endTime: json['end_time']?.toString() ?? '',
+      isAvailable: json['is_available'] ?? true,
+      blockedReason: json['blocked_reason']?.toString(),
+      warning: json['warning']?.toString(),
+      // ── New field: cross-service conflict flag ──────────────
+      userConflict: json['user_conflict'] ?? false,
+    );
   }
 
   // ==================== BOOKINGS ====================
@@ -264,10 +376,10 @@ class ChargingApiService {
         return data.map((json) => ChargingBooking.fromJson(json)).toList();
       }
       print(
-          ' getCustomerBookings error: ${response.statusCode} ${response.body}');
+          '❌ getCustomerBookings error: ${response.statusCode} ${response.body}');
       return [];
     } catch (e) {
-      print(' getCustomerBookings exception: $e');
+      print('❌ getCustomerBookings exception: $e');
       return [];
     }
   }
@@ -301,10 +413,10 @@ class ChargingApiService {
         final List<dynamic> data = jsonDecode(response.body);
         return data.map((json) => ChargingBooking.fromJson(json)).toList();
       }
-      print(' getAllBookings error: ${response.statusCode} ${response.body}');
+      print('❌ getAllBookings error: ${response.statusCode} ${response.body}');
       return [];
     } catch (e) {
-      print(' getAllBookings exception: $e');
+      print('❌ getAllBookings exception: $e');
       return [];
     }
   }
@@ -342,7 +454,7 @@ class ChargingApiService {
       }
       return null;
     } catch (e) {
-      print(' getBookingStatistics exception: $e');
+      print('❌ getBookingStatistics exception: $e');
       return null;
     }
   }
@@ -361,7 +473,7 @@ class ChargingApiService {
       }
       return [];
     } catch (e) {
-      print(' getLiveStationAvailability exception: $e');
+      print('❌ getLiveStationAvailability exception: $e');
       return [];
     }
   }

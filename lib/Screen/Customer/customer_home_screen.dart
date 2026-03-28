@@ -22,7 +22,6 @@ class CustomerHomeScreen extends StatefulWidget {
 class _CustomerHomePageState extends State<CustomerHomeScreen> {
   int _currentIndex = 0;
 
-  // GlobalKey to call loadAll() on MyBookingsScreen when tab is tapped
   final GlobalKey<MyBookingsScreenState> _bookingsKey =
       GlobalKey<MyBookingsScreenState>();
 
@@ -507,7 +506,7 @@ class _HomeTabState extends State<_HomeTab> {
               _buildServiceCard(
                 title: 'Blue Book Renewal',
                 subtitle: 'Vehicle registration & renewal',
-                badge: 'Coming Soon',
+                badge: 'Renew Now',
                 badgeColor: Colors.grey,
                 icon: Icons.description,
                 color: Colors.purple,
@@ -622,7 +621,7 @@ class _HomeTabState extends State<_HomeTab> {
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  '${station.availableChargers} free',
+                  '${station.availableChargers} available',
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,

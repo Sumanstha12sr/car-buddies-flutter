@@ -34,7 +34,7 @@ class _VehicleSelectionScreenState extends State<VehicleSelectionScreen> {
     setState(() => _isLoading = true);
     final vehicles = await _apiService.getVehicles();
     setState(() {
-      _vehicles = vehicles;
+      _vehicles = vehicles.where((v) => !v.isIce).toList();
       _isLoading = false;
       // Auto-select default vehicle if exists
       _selectedVehicle = vehicles.isNotEmpty

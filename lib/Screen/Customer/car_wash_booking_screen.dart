@@ -18,28 +18,19 @@ class _CarWashBookingScreenState extends State<CarWashBookingScreen> {
   final ChargingApiService _chargingApi = ChargingApiService();
 
   List<Service> _services = [];
-  List<Vehicle> _vehicles = []; // ALL vehicles (EV + ICE)
+  List<Vehicle> _vehicles = [];
   Service? _selectedService;
   Vehicle? _selectedVehicle;
-  DateTime _selectedDate = DateTime.now().add(const Duration(days: 1));
+  DateTime _selectedDate = DateTime.now();
   TimeOfDay _selectedTime = const TimeOfDay(hour: 10, minute: 0);
   final _notesController = TextEditingController();
 
   bool _isLoading = true;
+  bool _isSlotsLoading = false;
   bool _isCheckingConflict = false;
-  List<int> _bookedHours = []; // hours already booked for selected vehicle+date
 
-  final List<TimeOfDay> _timeSlots = [
-    const TimeOfDay(hour: 8, minute: 0),
-    const TimeOfDay(hour: 9, minute: 0),
-    const TimeOfDay(hour: 10, minute: 0),
-    const TimeOfDay(hour: 11, minute: 0),
-    const TimeOfDay(hour: 12, minute: 0),
-    const TimeOfDay(hour: 13, minute: 0),
-    const TimeOfDay(hour: 14, minute: 0),
-    const TimeOfDay(hour: 15, minute: 0),
-    const TimeOfDay(hour: 16, minute: 0),
-  ];
+  // Each slot: { start_time, end_time, is_available, user_conflict }
+  List<Map<String, dynamic>> _slots = [];
 
   @override
   void initState() {
@@ -53,15 +44,25 @@ class _CarWashBookingScreenState extends State<CarWashBookingScreen> {
     super.dispose();
   }
 
+  bool _isToday(DateTime date) {
+    final now = DateTime.now();
+    return date.year == now.year &&
+        date.month == now.month &&
+        date.day == now.day;
+  }
+
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     final results = await Future.wait([
       _serviceApi.getServicesByCategory('car_wash'),
-      _chargingApi.getVehicles(), // ALL vehicles — ICE can do car wash too
+      _chargingApi.getVehicles(),
     ]);
     setState(() {
       _services = results[0] as List<Service>;
-      _vehicles = results[1] as List<Vehicle>; // no filter — all types allowed
+      _vehicles = results[1] as List<Vehicle>;
+      if (_services.isNotEmpty) {
+        _selectedService = _services.first;
+      }
       if (_vehicles.isNotEmpty) {
         _selectedVehicle = _vehicles.firstWhere(
           (v) => v.isDefault,
@@ -70,51 +71,81 @@ class _CarWashBookingScreenState extends State<CarWashBookingScreen> {
       }
       _isLoading = false;
     });
-    // Load booked slots for default vehicle + default date
-    if (_selectedVehicle != null) {
-      await _loadBookedSlots();
-    }
+    await _loadSlots();
   }
 
-  // ── Load booked hours for selected vehicle on selected date ────
-  Future<void> _loadBookedSlots() async {
-    if (_selectedVehicle == null) return;
-    final dateStr = _selectedDate.toIso8601String().split('T')[0];
-    final hours = await _serviceApi.getVehicleBookedSlots(
-      vehicleId: _selectedVehicle!.id,
-      date: dateStr,
-    );
-    if (mounted) {
-      setState(() => _bookedHours = hours);
-    }
-  }
+  // ── Load slots from backend with service + date ──────────────
+  Future<void> _loadSlots() async {
+    if (_selectedService == null) return;
 
-  // ── Called when vehicle or date changes ───────────────────────
-  void _onVehicleChanged(Vehicle? v) {
+    if (_isSlotsLoading) return;
     setState(() {
-      _selectedVehicle = v;
-      _bookedHours = [];
+      _isSlotsLoading = true;
+      _slots = [];
     });
-    _loadBookedSlots();
+
+    final slots = await _chargingApi.getServiceTimeSlots(
+      date: _selectedDate,
+      serviceId: _selectedService?.id,
+    );
+
+    if (mounted) {
+      setState(() {
+        _slots = slots;
+        _isSlotsLoading = false;
+        // Reset selected time if it is now unavailable
+        final stillValid = _slots.any((s) =>
+            _hourFromSlot(s) == _selectedTime.hour &&
+            (s['is_available'] == true) &&
+            (s['user_conflict'] == false));
+        if (!stillValid && _slots.isNotEmpty) {
+          // Pick first available slot
+          final first = _slots.firstWhere(
+            (s) => s['is_available'] == true && s['user_conflict'] == false,
+            orElse: () => _slots.first,
+          );
+          _selectedTime = TimeOfDay(hour: _hourFromSlot(first), minute: 0);
+        }
+      });
+    }
+  }
+
+  int _hourFromSlot(Map<String, dynamic> slot) {
+    final t = slot['start_time']?.toString() ?? '08:00:00';
+    return int.tryParse(t.split(':')[0]) ?? 8;
+  }
+
+  bool _slotIsAvailable(Map<String, dynamic> slot) =>
+      slot['is_available'] == true;
+
+  bool _slotHasUserConflict(Map<String, dynamic> slot) =>
+      slot['user_conflict'] == true;
+
+  bool _slotIsDisabled(Map<String, dynamic> slot) =>
+      !_slotIsAvailable(slot) || _slotHasUserConflict(slot);
+
+  String _formatHour(int hour) {
+    final t = TimeOfDay(hour: hour, minute: 0);
+    final h = t.hourOfPeriod == 0 ? 12 : t.hourOfPeriod;
+    final p = t.period == DayPeriod.am ? 'AM' : 'PM';
+    return '$h:00 $p';
+  }
+
+  void _onServiceChanged(Service s) {
+    setState(() => _selectedService = s);
+    _loadSlots();
+  }
+
+  void _onVehicleChanged(Vehicle? v) {
+    setState(() => _selectedVehicle = v);
+    _loadSlots();
   }
 
   void _onDateChanged(DateTime date) {
-    setState(() {
-      _selectedDate = date;
-      _bookedHours = [];
-      // If selected time is now booked, reset to first available
-      if (_bookedHours.contains(_selectedTime.hour)) {
-        final available = _timeSlots.firstWhere(
-          (t) => !_bookedHours.contains(t.hour),
-          orElse: () => _timeSlots.first,
-        );
-        _selectedTime = available;
-      }
-    });
-    _loadBookedSlots();
+    setState(() => _selectedDate = date);
+    _loadSlots();
   }
 
-  // ── Proceed with conflict validation ──────────────────────────
   Future<void> _proceed() async {
     if (_selectedService == null) {
       _showError('Please select a wash type');
@@ -125,26 +156,49 @@ class _CarWashBookingScreenState extends State<CarWashBookingScreen> {
       return;
     }
 
-    // Check if selected time is already booked
-    if (_bookedHours.contains(_selectedTime.hour)) {
-      _showConflictError();
+    // Find the selected slot
+    final selectedSlot = _slots.firstWhere(
+      (s) => _hourFromSlot(s) == _selectedTime.hour,
+      orElse: () => {},
+    );
+
+    if (selectedSlot.isEmpty) {
+      _showError('Selected time slot not found. Please try again.');
       return;
     }
 
-    // Double-check with API before proceeding
+    if (!_slotIsAvailable(selectedSlot)) {
+      _showServiceBookedError();
+      return;
+    }
+
+    if (_slotHasUserConflict(selectedSlot)) {
+      _showUserConflictError();
+      return;
+    }
+
+    // ── Final fresh check before navigating ──────────────────────
     setState(() => _isCheckingConflict = true);
-    final dateStr = _selectedDate.toIso8601String().split('T')[0];
-    final bookedHours = await _serviceApi.getVehicleBookedSlots(
-      vehicleId: _selectedVehicle!.id,
-      date: dateStr,
+    final freshSlots = await _chargingApi.getServiceTimeSlots(
+      date: _selectedDate,
+      serviceId: _selectedService!.id,
     );
     setState(() {
-      _bookedHours = bookedHours;
+      _slots = freshSlots;
       _isCheckingConflict = false;
     });
 
-    if (bookedHours.contains(_selectedTime.hour)) {
-      _showConflictError();
+    final freshSlot = freshSlots.firstWhere(
+      (s) => _hourFromSlot(s) == _selectedTime.hour,
+      orElse: () => {},
+    );
+
+    if (freshSlot.isEmpty || !_slotIsAvailable(freshSlot)) {
+      _showServiceBookedError();
+      return;
+    }
+    if (_slotHasUserConflict(freshSlot)) {
+      _showUserConflictError();
       return;
     }
 
@@ -164,24 +218,51 @@ class _CarWashBookingScreenState extends State<CarWashBookingScreen> {
     );
   }
 
-  void _showConflictError() {
-    final hour =
-        _selectedTime.hourOfPeriod == 0 ? 12 : _selectedTime.hourOfPeriod;
-    final period = _selectedTime.period == DayPeriod.am ? 'AM' : 'PM';
+  void _showUserConflictError() {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
         title: const Row(
           children: [
-            Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 24),
+            Icon(Icons.event_busy, color: Colors.orange, size: 24),
             SizedBox(width: 8),
-            Text('Time Conflict'),
+            Text('You Have a Booking'),
           ],
         ),
         content: Text(
-          '${_selectedVehicle!.vehicleName} already has a booking '
-          'at $hour:00 $period on '
-          '${DateFormat('MMM dd, yyyy').format(_selectedDate)}.\n\n'
+          'You already have a booking at ${_formatHour(_selectedTime.hour)} '
+          'on ${DateFormat('MMM dd, yyyy').format(_selectedDate)}.\n\n'
+          'Please select a different time slot.',
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1565C0),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showServiceBookedError() {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.block, color: Colors.red, size: 24),
+            SizedBox(width: 8),
+            Text('Service Unavailable'),
+          ],
+        ),
+        content: Text(
+          'This car wash service is already booked at '
+          '${_formatHour(_selectedTime.hour)} '
+          'on ${DateFormat('MMM dd, yyyy').format(_selectedDate)}.\n\n'
           'Please select a different time slot.',
         ),
         actions: [
@@ -207,12 +288,6 @@ class _CarWashBookingScreenState extends State<CarWashBookingScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
-  }
-
-  String _formatTime(TimeOfDay time) {
-    final hour = time.hourOfPeriod == 0 ? 12 : time.hourOfPeriod;
-    final period = time.period == DayPeriod.am ? 'AM' : 'PM';
-    return '$hour:00 $period';
   }
 
   @override
@@ -243,8 +318,7 @@ class _CarWashBookingScreenState extends State<CarWashBookingScreen> {
                               .map((s) => _ServiceOptionCard(
                                     service: s,
                                     isSelected: _selectedService?.id == s.id,
-                                    onTap: () =>
-                                        setState(() => _selectedService = s),
+                                    onTap: () => _onServiceChanged(s),
                                   ))
                               .toList(),
                         ),
@@ -263,39 +337,36 @@ class _CarWashBookingScreenState extends State<CarWashBookingScreen> {
                             border: Border.all(color: Colors.grey.shade200),
                           ),
                           child: Column(
-                            children: _vehicles
-                                .asMap()
-                                .entries
-                                .map((e) => Column(
-                                      children: [
-                                        RadioListTile<Vehicle>(
-                                          value: e.value,
-                                          groupValue: _selectedVehicle,
-                                          onChanged: _onVehicleChanged,
-                                          title: Text(
-                                            e.value.vehicleName,
-                                            style: const TextStyle(
-                                                fontWeight: FontWeight.w600,
-                                                fontSize: 14),
-                                          ),
-                                          subtitle: Text(
-                                            '${e.value.vehicleNumber} • ${e.value.vehicleTypeLabel}',
-                                            style: TextStyle(
-                                                color: Colors.grey[500],
-                                                fontSize: 12),
-                                          ),
-                                          activeColor: const Color(0xFF1565C0),
-                                          secondary: e.value.isDefault
-                                              ? _defaultBadge()
-                                              : null,
-                                        ),
-                                        if (e.key < _vehicles.length - 1)
-                                          Divider(
-                                              height: 1,
-                                              color: Colors.grey.shade100),
-                                      ],
-                                    ))
-                                .toList(),
+                            children: _vehicles.asMap().entries.map((e) {
+                              return Column(
+                                children: [
+                                  RadioListTile<Vehicle>(
+                                    value: e.value,
+                                    groupValue: _selectedVehicle,
+                                    onChanged: _onVehicleChanged,
+                                    title: Text(
+                                      e.value.vehicleName,
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 14),
+                                    ),
+                                    subtitle: Text(
+                                      '${e.value.vehicleNumber} • ${e.value.vehicleTypeLabel}',
+                                      style: TextStyle(
+                                          color: Colors.grey[500],
+                                          fontSize: 12),
+                                    ),
+                                    activeColor: const Color(0xFF1565C0),
+                                    secondary: e.value.isDefault
+                                        ? _defaultBadge()
+                                        : null,
+                                  ),
+                                  if (e.key < _vehicles.length - 1)
+                                    Divider(
+                                        height: 1, color: Colors.grey.shade100),
+                                ],
+                              );
+                            }).toList(),
                           ),
                         ),
 
@@ -309,7 +380,7 @@ class _CarWashBookingScreenState extends State<CarWashBookingScreen> {
                       final picked = await showDatePicker(
                         context: context,
                         initialDate: _selectedDate,
-                        firstDate: DateTime.now().add(const Duration(days: 1)),
+                        firstDate: DateTime.now(),
                         lastDate: DateTime.now().add(const Duration(days: 30)),
                         builder: (context, child) => Theme(
                           data: Theme.of(context).copyWith(
@@ -352,87 +423,154 @@ class _CarWashBookingScreenState extends State<CarWashBookingScreen> {
                   _sectionTitle('4. Select Time', Icons.access_time),
                   const SizedBox(height: 8),
 
-                  // Booked slots legend
-                  if (_bookedHours.isNotEmpty)
+                  // ── Legend ───────────────────────────────────
+                  if (!_isSlotsLoading && _slots.isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 10),
                       child: Row(
                         children: [
-                          Container(
-                            width: 12,
-                            height: 12,
-                            decoration: BoxDecoration(
-                              color: Colors.red.shade100,
-                              borderRadius: BorderRadius.circular(3),
-                              border: Border.all(color: Colors.red.shade300),
-                            ),
-                          ),
-                          const SizedBox(width: 6),
+                          _legendDot(Colors.green, 'Available'),
+                          const SizedBox(width: 12),
+                          _legendDot(Colors.red.shade300, 'Fully booked'),
+                          const SizedBox(width: 12),
+                          _legendDot(Colors.orange.shade400, 'Your booking'),
+                        ],
+                      ),
+                    ),
+
+                  // ── Today notice ─────────────────────────────
+                  if (_isToday(_selectedDate))
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.amber.shade200),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.info_outline,
+                              size: 16, color: Colors.amber.shade700),
+                          const SizedBox(width: 8),
                           Text(
-                            'Already booked for this vehicle',
+                            'Past slots are hidden.',
                             style: TextStyle(
-                                fontSize: 11, color: Colors.grey[500]),
+                                fontSize: 12, color: Colors.amber.shade800),
                           ),
                         ],
                       ),
                     ),
 
-                  Wrap(
-                    spacing: 10,
-                    runSpacing: 10,
-                    children: _timeSlots.map((t) {
-                      final isSelected = _selectedTime.hour == t.hour;
-                      final isBooked = _bookedHours.contains(t.hour);
-                      return GestureDetector(
-                        onTap: isBooked
-                            ? () => _showError(
-                                '${_formatTime(t)} is already booked for this vehicle')
-                            : () => setState(() => _selectedTime = t),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 10),
-                          decoration: BoxDecoration(
-                            color: isBooked
-                                ? Colors.red.shade50
-                                : isSelected
-                                    ? const Color(0xFF1565C0)
-                                    : Colors.white,
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(
-                              color: isBooked
-                                  ? Colors.red.shade300
-                                  : isSelected
-                                      ? const Color(0xFF1565C0)
-                                      : Colors.grey.shade200,
-                            ),
+                  // ── Slot Grid ────────────────────────────────
+                  _isSlotsLoading
+                      ? const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(20),
+                            child: CircularProgressIndicator(),
                           ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (isBooked)
-                                Padding(
-                                  padding: const EdgeInsets.only(right: 4),
-                                  child: Icon(Icons.block,
-                                      size: 12, color: Colors.red.shade400),
-                                ),
-                              Text(
-                                _formatTime(t),
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
-                                  color: isBooked
-                                      ? Colors.red.shade400
-                                      : isSelected
-                                          ? Colors.white
-                                          : Colors.grey[700],
+                        )
+                      : _slots.isEmpty
+                          ? Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  'No slots available for this date',
+                                  style: TextStyle(color: Colors.grey[500]),
                                 ),
                               ),
-                            ],
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
+                            )
+                          : Wrap(
+                              spacing: 10,
+                              runSpacing: 10,
+                              children: _slots.map((slot) {
+                                final hour = _hourFromSlot(slot);
+                                final isSelected = _selectedTime.hour == hour;
+                                final isBooked = !_slotIsAvailable(slot);
+                                final isConflict = _slotHasUserConflict(slot);
+                                final isDisabled = isBooked || isConflict;
+
+                                Color bgColor() {
+                                  if (isBooked) return Colors.red.shade50;
+                                  if (isConflict) return Colors.orange.shade50;
+                                  if (isSelected) {
+                                    return const Color(0xFF1565C0);
+                                  }
+                                  return Colors.white;
+                                }
+
+                                Color borderColor() {
+                                  if (isBooked) return Colors.red.shade300;
+                                  if (isConflict) return Colors.orange.shade300;
+                                  if (isSelected) {
+                                    return const Color(0xFF1565C0);
+                                  }
+                                  return Colors.grey.shade200;
+                                }
+
+                                Color textColor() {
+                                  if (isBooked) return Colors.red.shade400;
+                                  if (isConflict) return Colors.orange.shade700;
+                                  if (isSelected) return Colors.white;
+                                  return Colors.grey.shade700;
+                                }
+
+                                return GestureDetector(
+                                  onTap: isDisabled
+                                      ? () {
+                                          final msg = isBooked
+                                              ? 'This service is already booked for the selected time.'
+                                              : 'You already have a booking at this time.';
+                                          _showError(msg);
+                                        }
+                                      : () => setState(() => _selectedTime =
+                                          TimeOfDay(hour: hour, minute: 0)),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 16, vertical: 10),
+                                    decoration: BoxDecoration(
+                                      color: bgColor(),
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(color: borderColor()),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        if (isBooked)
+                                          Padding(
+                                            padding:
+                                                const EdgeInsets.only(right: 4),
+                                            child: Icon(Icons.block,
+                                                size: 12,
+                                                color: Colors.red.shade400),
+                                          )
+                                        else if (isConflict)
+                                          Padding(
+                                            padding:
+                                                const EdgeInsets.only(right: 4),
+                                            child: Icon(Icons.event_busy,
+                                                size: 12,
+                                                color: Colors.orange.shade700),
+                                          ),
+                                        Text(
+                                          _formatHour(hour),
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w500,
+                                            color: textColor(),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                            ),
 
                   const SizedBox(height: 24),
 
@@ -499,6 +637,19 @@ class _CarWashBookingScreenState extends State<CarWashBookingScreen> {
     );
   }
 
+  Widget _legendDot(Color color, String label) {
+    return Row(
+      children: [
+        Container(
+            width: 10,
+            height: 10,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+        const SizedBox(width: 4),
+        Text(label, style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+      ],
+    );
+  }
+
   Widget _defaultBadge() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -539,8 +690,6 @@ class _CarWashBookingScreenState extends State<CarWashBookingScreen> {
     );
   }
 }
-
-// ── Service Option Card ──────────────────────────────────────────
 
 class _ServiceOptionCard extends StatelessWidget {
   final Service service;

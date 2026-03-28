@@ -21,7 +21,6 @@ class Vehicle {
     required this.createdAt,
   });
 
-  // ── Helpers ──────────────────────────────────────────────────
   bool get isEv => vehicleType == 'electric' || vehicleType == 'hybrid';
   bool get isIce => vehicleType == 'ice';
 
@@ -174,6 +173,10 @@ class TimeSlot {
   final String startTime;
   final String endTime;
   final bool isAvailable;
+  final String? blockedReason; // 'booked' or 'insufficient_time'
+  final String? warning; // warning message if close to closing
+  final bool
+      userConflict; // true if customer already has a booking at this time
 
   TimeSlot({
     required this.id,
@@ -184,6 +187,9 @@ class TimeSlot {
     required this.startTime,
     required this.endTime,
     required this.isAvailable,
+    this.blockedReason,
+    this.warning,
+    this.userConflict = false, // defaults to false so nothing breaks
   });
 
   factory TimeSlot.fromJson(Map<String, dynamic> json) {
@@ -197,6 +203,9 @@ class TimeSlot {
       startTime: json['start_time'] ?? '',
       endTime: json['end_time'] ?? '',
       isAvailable: json['is_available'] ?? true,
+      blockedReason: json['blocked_reason'],
+      warning: json['warning'],
+      userConflict: json['user_conflict'] ?? false, // reads from API response
     );
   }
 }

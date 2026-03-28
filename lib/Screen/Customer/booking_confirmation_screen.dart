@@ -44,15 +44,15 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
   }
 
   void _calculateEstimate() {
-    _estimatedEnergy = (widget.vehicle.batteryCapacity ?? 0.0) * 0.5;
-    _estimatedCost = _estimatedEnergy * widget.charger.pricePerKwh;
+    // ── Null-safe: fallback to 0 if either field is null ─────────
+    _estimatedEnergy = (widget.vehicle.batteryCapacity ?? 0) * 0.5;
+    _estimatedCost = _estimatedEnergy * (widget.charger.pricePerKwh ?? 0);
     setState(() {});
   }
 
   Future<void> _confirmBooking() async {
     setState(() => _isLoading = true);
 
-    // ── Updated to use named parameters ──────────────────────────
     final result = await _apiService.createBooking(
       chargerId: widget.charger.id,
       vehicleId: widget.vehicle.id,
@@ -80,15 +80,19 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
           actions: [
             TextButton(
               onPressed: () {
-                int count = 0;
-                Navigator.of(context).popUntil((_) => count++ >= 4);
+                Navigator.of(context).pop();
+                Navigator.of(context).popUntil(
+                  (route) => route.isFirst,
+                );
               },
               child: const Text('Go to Home'),
             ),
             ElevatedButton(
               onPressed: () {
-                int count = 0;
-                Navigator.of(context).popUntil((_) => count++ >= 4);
+                Navigator.of(context).pop();
+                Navigator.of(context).popUntil(
+                  (route) => route.isFirst,
+                );
               },
               style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
               child: const Text(
@@ -156,7 +160,8 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                 _buildInfoRow('Type', '${widget.charger.chargerType} Charger'),
                 _buildInfoRow(
                     'Power Output', '${widget.charger.powerOutput} kW'),
-                _buildInfoRow('Price', 'NPR ${widget.charger.pricePerKwh}/kWh'),
+                _buildInfoRow(
+                    'Price', 'NPR ${widget.charger.pricePerKwh ?? 0}/kWh'),
               ],
             ),
 
@@ -171,10 +176,7 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
                 _buildInfoRow('Name', widget.vehicle.vehicleName),
                 _buildInfoRow('Number', widget.vehicle.vehicleNumber),
                 _buildInfoRow(
-                    'Battery',
-                    widget.vehicle.batteryCapacity != null
-                        ? '${widget.vehicle.batteryCapacity} kWh'
-                        : 'N/A'),
+                    'Battery', '${widget.vehicle.batteryCapacity ?? 0} kWh'),
               ],
             ),
 

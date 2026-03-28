@@ -37,7 +37,7 @@ class _ChargingStationsScreenState extends State<ChargingStationsScreen> {
     super.dispose();
   }
 
-  // ── Initial station load ──────────────────────────────────────────────────
+  // Initial station load
   Future<void> _loadStations() async {
     setState(() => _isLoading = true);
     final stations = await _apiService.getChargingStations();
@@ -427,7 +427,7 @@ class _ChargingStationsScreenState extends State<ChargingStationsScreen> {
             ),
           ),
           Text(
-            'Free',
+            'Available',
             style: TextStyle(
               fontSize: 11,
               color: isFull ? Colors.red : Colors.green,
@@ -438,7 +438,7 @@ class _ChargingStationsScreenState extends State<ChargingStationsScreen> {
     );
   }
 
-  // ── Live charger breakdown row ────────────────────────────────────────────
+  // Live charger breakdown row
   Widget _buildLiveStatusRow(
       int available, int occupied, int total, String stationId) {
     final maintenance = total - available - occupied;

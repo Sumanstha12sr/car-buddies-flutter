@@ -107,9 +107,11 @@ class _ServiceConfirmationScreenState extends State<ServiceConfirmationScreen> {
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () {
-                  // Pop back to services screen
-                  int count = 0;
-                  Navigator.of(context).popUntil((_) => count++ >= 3);
+                  // Close dialog then pop all the way back to home
+                  Navigator.of(context).pop(); // close dialog
+                  Navigator.of(context).popUntil(
+                    (route) => route.isFirst,
+                  );
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _themeColor,

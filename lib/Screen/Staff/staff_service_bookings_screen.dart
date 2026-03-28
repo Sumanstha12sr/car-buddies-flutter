@@ -410,18 +410,16 @@ class _StaffBookingCard extends StatelessWidget {
                 _row(Icons.payments_outlined, 'Amount',
                     'NPR ${booking.servicePrice.toStringAsFixed(0)}'),
 
-                // Mechanic info (EV Check only)
-                if (booking.isEvCheck) ...[
-                  const SizedBox(height: 6),
-                  _row(
-                    Icons.engineering,
-                    'Mechanic',
-                    booking.mechanicName ?? 'Not assigned yet',
-                    valueColor: booking.mechanicName != null
-                        ? Colors.green
-                        : Colors.orange,
-                  ),
-                ],
+                // Mechanic info (Car Wash + EV Check)
+                const SizedBox(height: 6),
+                _row(
+                  Icons.engineering,
+                  'Mechanic',
+                  booking.mechanicName ?? 'Not assigned yet',
+                  valueColor: booking.mechanicName != null
+                      ? Colors.green
+                      : Colors.orange,
+                ),
 
                 // Staff notes
                 if (booking.staffNotes.isNotEmpty) ...[
@@ -442,13 +440,17 @@ class _StaffBookingCard extends StatelessWidget {
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      // Assign mechanic (EV Check only)
-                      if (booking.isEvCheck && booking.status == 'pending') ...[
+                      // Assign mechanic button (both Car Wash + EV Check)
+                      if (booking.status == 'pending') ...[
                         Expanded(
                           child: OutlinedButton.icon(
                             onPressed: () => onAssignMechanic(booking),
                             icon: const Icon(Icons.engineering, size: 16),
-                            label: const Text('Assign'),
+                            label: Text(
+                              booking.mechanicName != null
+                                  ? 'Reassign'
+                                  : 'Assign',
+                            ),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: Colors.teal,
                               side: const BorderSide(color: Colors.teal),
@@ -487,6 +489,34 @@ class _StaffBookingCard extends StatelessWidget {
   }
 
   void _showStatusOptions(BuildContext context, ServiceBooking booking) {
+    // ── Mechanic must be assigned before confirming ────────────────
+    if (booking.status == 'pending' && booking.mechanicName == null) {
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 22),
+              SizedBox(width: 8),
+              Text('Assign Mechanic First'),
+            ],
+          ),
+          content: const Text(
+            'Please assign a mechanic before confirming this booking.',
+          ),
+          actions: [
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.teal, foregroundColor: Colors.white),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
     // Available next statuses based on current status
     final Map<String, List<Map<String, dynamic>>> options = {
       'pending': [
