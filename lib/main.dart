@@ -1,9 +1,16 @@
 import 'package:car_buddies/Screen/Auth/welcome_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'Screen/Auth/login_screen.dart';
 import 'Screen/Auth/signup_screen.dart';
 
-void main() {
+void main() async {
+  // ── Must be first before any async calls ──────────────────────
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // ── Pre-initialize SharedPreferences so token is ready immediately
+  await SharedPreferences.getInstance();
+
   runApp(const MyApp());
 }
 

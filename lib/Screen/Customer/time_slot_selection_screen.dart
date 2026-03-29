@@ -317,8 +317,6 @@ class _TimeSlotSelectionScreenState extends State<TimeSlotSelectionScreen>
                   _legendDot(Colors.red.shade300, 'Booked'),
                   const SizedBox(width: 14),
                   _legendDot(Colors.orange.shade400, 'Your booking'),
-                  const SizedBox(width: 14),
-                  _legendDot(Colors.grey.shade400, 'Not enough time'),
                 ],
               ),
             ),
@@ -411,18 +409,17 @@ class _TimeSlotSelectionScreenState extends State<TimeSlotSelectionScreen>
 
   Widget _buildTimeSlotCard(TimeSlot slot) {
     final isSelected = _selectedSlot?.id == slot.id;
-    final isBooked = !slot.isAvailable && slot.blockedReason == 'booked';
-    final isInsufficient =
-        !slot.isAvailable && slot.blockedReason == 'insufficient_time';
 
-    // ── New: user already has a booking at this time ─────────────
+    // ── Correct detection — backend never sends blockedReason ──────
+    // A slot is booked by someone else if is_available is false
+    // AND the current user does not have a conflict on it
     final isUserConflict = slot.userConflict;
+    final isBooked = !slot.isAvailable && !isUserConflict;
     final isUnavailable = !slot.isAvailable || isUserConflict;
 
     Color borderColor() {
       if (isBooked) return Colors.red.shade300;
       if (isUserConflict) return Colors.orange.shade300;
-      if (isInsufficient) return Colors.grey.shade300;
       if (isSelected) return Colors.green;
       return Colors.grey.shade200;
     }
@@ -430,7 +427,6 @@ class _TimeSlotSelectionScreenState extends State<TimeSlotSelectionScreen>
     Color bgColor() {
       if (isBooked) return Colors.red.shade50;
       if (isUserConflict) return Colors.orange.shade50;
-      if (isInsufficient) return Colors.grey.shade100;
       if (isSelected) return Colors.green.shade50;
       return Colors.white;
     }
@@ -438,7 +434,6 @@ class _TimeSlotSelectionScreenState extends State<TimeSlotSelectionScreen>
     String statusLabel() {
       if (isBooked) return 'Booked';
       if (isUserConflict) return 'You already have a booking at this time';
-      if (isInsufficient) return 'Not enough time before closing';
       if (isSelected) return 'Selected ✓';
       return 'Available';
     }
@@ -446,7 +441,6 @@ class _TimeSlotSelectionScreenState extends State<TimeSlotSelectionScreen>
     Color statusColor() {
       if (isBooked) return Colors.red.shade400;
       if (isUserConflict) return Colors.orange.shade700;
-      if (isInsufficient) return Colors.grey.shade500;
       if (isSelected) return Colors.green.shade700;
       return Colors.green;
     }
@@ -456,16 +450,10 @@ class _TimeSlotSelectionScreenState extends State<TimeSlotSelectionScreen>
           ? () {
               final msg = isBooked
                   ? '${_fmt(slot.startTime)} is already booked'
-                  : isUserConflict
-                      ? 'You already have a booking at this time'
-                      : 'Not enough time for a full charge before closing';
+                  : 'You already have a booking at this time';
               ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                 content: Text(msg),
-                backgroundColor: isBooked
-                    ? Colors.red
-                    : isUserConflict
-                        ? Colors.orange
-                        : Colors.grey,
+                backgroundColor: isBooked ? Colors.red : Colors.orange,
                 behavior: SnackBarBehavior.floating,
               ));
             }
@@ -498,11 +486,9 @@ class _TimeSlotSelectionScreenState extends State<TimeSlotSelectionScreen>
                     ? Colors.red.shade100
                     : isUserConflict
                         ? Colors.orange.shade100
-                        : isInsufficient
-                            ? Colors.grey.shade200
-                            : isSelected
-                                ? Colors.green.shade100
-                                : Colors.grey.shade100,
+                        : isSelected
+                            ? Colors.green.shade100
+                            : Colors.grey.shade100,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(
@@ -511,11 +497,9 @@ class _TimeSlotSelectionScreenState extends State<TimeSlotSelectionScreen>
                     ? Colors.red.shade400
                     : isUserConflict
                         ? Colors.orange.shade400
-                        : isInsufficient
-                            ? Colors.grey.shade400
-                            : isSelected
-                                ? Colors.green
-                                : Colors.grey.shade400,
+                        : isSelected
+                            ? Colors.green
+                            : Colors.grey.shade400,
                 size: 26,
               ),
             ),
@@ -564,10 +548,7 @@ class _TimeSlotSelectionScreenState extends State<TimeSlotSelectionScreen>
             else if (isBooked)
               Icon(Icons.cancel_outlined, color: Colors.red.shade300, size: 22)
             else if (isUserConflict)
-              Icon(Icons.event_busy, color: Colors.orange.shade400, size: 22)
-            else if (isInsufficient)
-              Icon(Icons.do_not_disturb_outlined,
-                  color: Colors.grey.shade400, size: 22),
+              Icon(Icons.event_busy, color: Colors.orange.shade400, size: 22),
           ],
         ),
       ),
